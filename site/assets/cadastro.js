@@ -1,5 +1,5 @@
 import { $, api, aviso, definirErro } from "./comum.js";
-import { limparTexto, mostrarTelefone, mostrarData, mostrarCpf, hojeSP, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
+import { PAI_NAO_CONSTA, camposPendentes, limparTexto, mostrarTelefone, mostrarData, mostrarCpf, hojeSP, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
 
 const form = $("#member-form");
 const selects = $("#funcao");
@@ -17,7 +17,7 @@ let values;
 let requestId = null;
 let sending = false;
 
-$(".consent span").textContent = TEXTO_CONSENTIMENTO;
+$("#consentimento + span").textContent = TEXTO_CONSENTIMENTO;
 for (const id of ["nascimento","batismo"]) $("#" + id).max = hojeSP();
 
 function getData() {
@@ -68,13 +68,18 @@ function stage(number, focus = true) {
 }
 
 function buildReview(data) {
+  const F = "Falta preencher";
+  const faltam = camposPendentes(data);
+  const missing = $("#review-missing");
+  missing.hidden = !faltam.length;
+  missing.textContent = faltam.length ? "Faltam: " + faltam.join(", ") + ". Você pode enviar assim mesmo; a secretaria vai completar com você." : "";
   const dl = $("#review-data");
   const rows = [
     ["Nome completo", data.nome], ["Telefone com DDD", mostrarTelefone(data.telefone)],
-    ["Função na igreja", data.funcao], ["Data de nascimento", mostrarData(data.nascimento)],
-    ["Data de batismo", mostrarData(data.batismo) || "Não informada"], ["Estado civil", data.estado_civil || "Não informado"],
-    ["Natural de", data.naturalidade || "Não informado"], ["Pai", data.pai || "Não informado"], ["Mãe", data.mae || "Não informado"],
-    ["RG", data.rg || "Não informado"], ["CPF", data.cpf ? mostrarCpf(data.cpf) : "Não informado"]
+    ["Função na igreja", data.funcao], ["Data de nascimento", mostrarData(data.nascimento) || F],
+    ["Data de batismo", mostrarData(data.batismo) || F], ["Estado civil", data.estado_civil || F],
+    ["Natural de", data.naturalidade || F], ["Pai", data.pai || F], ["Mãe", data.mae || F],
+    ["RG", data.rg || F], ["CPF", mostrarCpf(data.cpf) || F]
   ];
   dl.replaceChildren(...rows.map(([label, value]) => {
     const row = document.createElement("div");
@@ -103,6 +108,12 @@ form.addEventListener("input", event => {
 });
 $("#telefone").addEventListener("blur", event => {
   event.target.value = mostrarTelefone(event.target.value);
+});
+$("#pai-nc").addEventListener("change", event => {
+  const pai = $("#pai");
+  pai.value = event.target.checked ? PAI_NAO_CONSTA : "";
+  pai.readOnly = event.target.checked;
+  definirErro(pai, $("#erro-pai"), "");
 });
 $("#cpf").addEventListener("blur", event => {
   event.target.value = mostrarCpf(event.target.value);
@@ -154,6 +165,7 @@ form.addEventListener("submit", async event => {
     values = undefined;
     requestId = null;
     $("#other-wrap").hidden = true;
+    $("#pai").readOnly = false;
     preview();
     stage(3);
   } catch (error) {

@@ -28,7 +28,7 @@ function fixture(t) {
   return { env, req, login };
 }
 function entry(changes = {}) {
-  return { solicitacao: crypto.randomUUID(), nome:"Pessoa de Teste", telefone:"(11) 90000-0000", ano:"2020", funcao:"Membro", nascimento:"1990-05-12", consentimento:true, versaoConsentimento:VERSAO_CONSENTIMENTO, ...changes };
+  return { solicitacao: crypto.randomUUID(), nome:"Pessoa de Teste", telefone:"(11) 90000-0000", ano:"2020", funcao:"Membro", nascimento:"1990-05-12", batismo:"2015-08-30", pai:"José de Teste", mae:"Maria de Teste", estado_civil:"Solteiro(a)", rg:"12.345.678-9", cpf:"529.982.247-25", naturalidade:"Guarulhos - SP", consentimento:true, versaoConsentimento:VERSAO_CONSENTIMENTO, ...changes };
 }
 
 test("recebe, normaliza e confirma apenas uma vez, mesmo ao repetir o mesmo envio",async t => {

@@ -1,6 +1,7 @@
 export const FUNCOES = ["Membro","Cooperador(a)","Diácono(a)","Diaconisa","Presbítero(a)","Evangelista","Missionário(a)","Pastor(a)","Outro"];
 export const SITUACOES = { recebido: "Recebido", conferido: "Conferido", emitido: "Emitido" };
 export const ESTADOS_CIVIS = ["Solteiro(a)","Casado(a)","Divorciado(a)","Viúvo(a)","União estável"];
+export const PAI_NAO_CONSTA = "Não consta";
 export const VERSAO_CONSENTIMENTO = "carteirinha-v2";
 export const TEXTO_CONSENTIMENTO = "Sou o membro ou seu responsável e autorizo a Missão Resgate Restaurando Vidas a usar estes dados, incluindo RG e CPF, e a foto tirada na igreja para preparar a carteirinha. A secretaria pode entrar em contato sobre este cadastro.";
 
@@ -71,6 +72,14 @@ function textoValido(value, max) {
   return value.length >= 2 && value.length <= max && /\p{L}/u.test(value) && !/[\p{Cc}\p{Cf}]/u.test(value);
 }
 
+export const CAMPOS_FICHA = { nascimento: "Data de nascimento", batismo: "Data de batismo", estado_civil: "Estado civil",
+  naturalidade: "Natural de", pai: "Pai", mae: "Mãe", rg: "RG", cpf: "CPF" };
+
+// Campos da ficha que ficaram em branco e a secretaria precisa completar.
+export function camposPendentes(ficha) {
+  return Object.keys(CAMPOS_FICHA).filter(k => !ficha?.[k]).map(k => CAMPOS_FICHA[k]);
+}
+
 export function validarDados(data) {
   const nome = limparTexto(data.nome);
   const telefone = digitosTelefone(data.telefone);
@@ -92,17 +101,18 @@ export function validarDados(data) {
     errors.ano = "Informe um ano entre 1900 e " + anoAtual() + " ou deixe em branco.";
   }
   if (!textoValido(funcao, 45)) errors.funcao = "Informe uma função de até 45 caracteres.";
-  if (!dataValida(nascimento) || nascimento < "1900-01-01" || nascimento > hoje) errors.nascimento = "Informe sua data de nascimento.";
-  if (batismo && (!dataValida(batismo) || batismo < "1900-01-01" || batismo > hoje)) errors.batismo = "Confira a data de batismo ou deixe em branco.";
-  else if (batismo && !errors.nascimento && batismo < nascimento) errors.batismo = "O batismo não pode ser antes do nascimento.";
+  // Campos em branco não impedem o envio; ficam como pendência para a secretaria. Só valores inválidos bloqueiam.
+  if (nascimento && (!dataValida(nascimento) || nascimento < "1900-01-01" || nascimento > hoje)) errors.nascimento = "Confira a data de nascimento.";
+  if (batismo && (!dataValida(batismo) || batismo < "1900-01-01" || batismo > hoje)) errors.batismo = "Confira a data de batismo.";
+  else if (batismo && nascimento && !errors.nascimento && batismo < nascimento) errors.batismo = "O batismo não pode ser antes do nascimento.";
   if (pai && !textoValido(pai, 100)) errors.pai = "Confira o nome do pai, com até 100 caracteres.";
   if (mae && !textoValido(mae, 100)) errors.mae = "Confira o nome da mãe, com até 100 caracteres.";
   if (estado_civil && !ESTADOS_CIVIS.includes(estado_civil)) errors.estado_civil = "Escolha o estado civil na lista.";
   if (rg && !/^[0-9A-Z][0-9A-Z.\-\/ ]{3,19}$/.test(rg)) errors.rg = "Confira o RG, com até 20 caracteres.";
   if (cpf && !cpfValido(cpf)) errors.cpf = "Este CPF não é válido. Confira os 11 números.";
-  if (naturalidade && !textoValido(naturalidade, 60)) errors.naturalidade = "Informe a cidade e o estado, com até 60 caracteres.";
+  if (naturalidade && !textoValido(naturalidade, 60)) errors.naturalidade = "Confira a cidade e o estado, com até 60 caracteres.";
   return { fields: {
-    nome, telefone, ano: ano ? Number(ano) : null, funcao, nascimento,
+    nome, telefone, ano: ano ? Number(ano) : null, funcao, nascimento: nascimento || null,
     batismo: batismo || null, pai: pai || null, mae: mae || null, estado_civil: estado_civil || null,
     rg: rg || null, cpf: cpf || null, naturalidade: naturalidade || null
   }, errors };

@@ -1,5 +1,5 @@
 import { $, api, aviso, linkArquivo } from "./comum.js";
-import { limparTexto, mostrarTelefone, mostrarCpf, SITUACOES, validarDados } from "./dados.js";
+import { limparTexto, mostrarTelefone, mostrarCpf, camposPendentes, SITUACOES, validarDados } from "./dados.js";
 const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
 
 const base = "/api/secretaria";
@@ -85,6 +85,13 @@ function rowCard(m) {
   const small = document.createElement("small");
   small.textContent = (m.matricula ? "Matrícula " + m.matricula : m.protocolo) + " · " + shortDate(m.recebido_em);
   text.append(name, small);
+  const faltam = camposPendentes(m);
+  if (faltam.length) {
+    const pend = document.createElement("small");
+    pend.className = "row-missing";
+    pend.textContent = "Falta: " + faltam.join(", ");
+    text.append(pend);
+  }
   const state = document.createElement("span");
   state.className = "status-tag " + m.situacao;
   state.textContent = SITUACOES[m.situacao];
@@ -209,6 +216,10 @@ function fillFields(m) {
   $("#ed-funcao").value = m.funcao;
   for (const k of EXTRAS) $("#ed-" + k).value = (k === "cpf" ? mostrarCpf(m.cpf) : m[k]) || "";
   $("#ed-emissao").value = m.emissao || "";
+  const faltam = camposPendentes(m);
+  $("#record-missing").hidden = !faltam.length;
+  $("#record-missing").textContent = faltam.length ? "Falta completar com o membro: " + faltam.join(", ") + "." : "";
+  for (const k of EXTRAS) $("#ed-" + k).classList.toggle("is-missing", !m[k]);
   $("#ed-matricula").value = m.matricula || "";
   $("#ed-situacao").value = m.situacao;
   updateHeader(m);
