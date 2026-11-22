@@ -4,6 +4,7 @@ import { chaveBusca, limparTexto, mostrarTelefone, validarDados, SITUACOES, VERS
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "__Host-misrrev";
 const SESSION_SECONDS = 4 * 60 * 60;
+const SESSION_LONG_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_LIMIT = 480 * 1024;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
@@ -149,11 +150,12 @@ async function signIn(request, db, secret, key) {
   const raw = hex(crypto.getRandomValues(new Uint8Array(32)));
   const hash = await keyedHash(key, "sessao|" + raw);
   const now = Math.floor(Date.now() / 1000);
+  const seconds = data.manter === true ? SESSION_LONG_SECONDS : SESSION_SECONDS;
   await db.batch([
     db.prepare("DELETE FROM sessoes WHERE expira <= ?").bind(now),
-    db.prepare("INSERT INTO sessoes(chave,expira) VALUES(?,?)").bind(hash, now + SESSION_SECONDS)
+    db.prepare("INSERT INTO sessoes(chave,expira) VALUES(?,?)").bind(hash, now + seconds)
   ]);
-  return json({ ok: true }, 200, { "Set-Cookie": cookie(raw, SESSION_SECONDS) });
+  return json({ ok: true }, 200, { "Set-Cookie": cookie(raw, seconds) });
 }
 
 async function authorize(request, db, key) {

@@ -150,13 +150,22 @@ $("#show-password").addEventListener("click", () => {
   $("#show-password").setAttribute("aria-pressed", String(show));
   $("#show-password").setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
 });
+// Oferece ao navegador salvar a senha (Chrome, Edge e Android), além da detecção automática do formulário.
+function salvarSenhaNoNavegador() {
+  try {
+    if (window.PasswordCredential && navigator.credentials?.store) {
+      navigator.credentials.store(new PasswordCredential({ id: "secretaria", name: "Secretaria MISRREV", password: $("#senha").value })).catch(() => {});
+    }
+  } catch {}
+}
 $("#login-form").addEventListener("submit", async event => {
   event.preventDefault();
   if ($("#login-btn").disabled) return;
   $("#login-btn").disabled = true;
   aviso($("#login-msg"), "");
   try {
-    await api(base + "/entrar", { method: "POST", json: { senha: $("#senha").value } });
+    await api(base + "/entrar", { method: "POST", json: { senha: $("#senha").value, manter: $("#manter").checked } });
+    salvarSenhaNoNavegador();
     await signedIn(true);
   } catch (error) {
     if (!active) { aviso($("#login-msg"), error.message); $("#senha").focus(); }
