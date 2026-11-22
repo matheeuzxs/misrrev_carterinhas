@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../site/_worker.js";
 import { abrirBanco } from "../ferramentas/banco-local.mjs";
-import { VERSAO_CONSENTIMENTO, cpfValido, mostrarData, camposPendentes } from "../site/assets/dados.js";
+import { VERSAO_CONSENTIMENTO, cpfValido, mostrarData, camposPendentes, mascaraCpf, formatarRg } from "../site/assets/dados.js";
 import { modeloInicial, completarModelo, conferirModelo, CAMPOS_CARTAO } from "../site/assets/impressao/modelo.js";
 
 const url = "https://igreja.example";
@@ -25,6 +25,9 @@ test("CPF e datas são validados", () => {
   assert.equal(cpfValido("111.111.111-11"), false);
   assert.equal(cpfValido("529.982.247-24"), false);
   assert.equal(mostrarData("2015-08-30"), "30/08/2015");
+  assert.equal(mascaraCpf("5299"), "529.9"); assert.equal(mascaraCpf("52998224725"), "529.982.247-25"); assert.equal(mascaraCpf("529.982.247-2599"), "529.982.247-25");
+  assert.equal(formatarRg("34567890x"), "34.567.890-X"); assert.equal(formatarRg("34.567.890-1"), "34.567.890-1");
+  assert.equal(formatarRg("MG-12.345.678"), "MG-12.345.678"); assert.equal(formatarRg("1234567"), "1234567");
   assert.deepEqual(camposPendentes({ nascimento: "1990-01-01", cpf: "52998224725" }), ["Data de batismo","Estado civil","Natural de","Pai","Mãe","RG"]);
 });
 

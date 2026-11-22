@@ -90,3 +90,26 @@ if (typeof document !== "undefined") {
   setInterval(conferir, 5 * 60 * 1000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") conferir(); });
 }
+
+// Aplica uma máscara enquanto a pessoa digita, mantendo o cursor depois do mesmo número de dígitos.
+export function mascarar(input, formatar) {
+  const contar = text => (text.match(/[0-9A-Za-z]/g) || []).length;
+  input.addEventListener("input", event => {
+    let value = input.value, pos = input.selectionStart ?? value.length;
+    let antes = contar(value.slice(0, pos));
+    // Apagar um ponto ou traço com Backspace apaga o dígito anterior a ele.
+    if (event.inputType === "deleteContentBackward" && contar(value) === contar(input.dataset.anterior || "") && antes > 0) {
+      let i = pos;
+      while (i > 0 && !/[0-9A-Za-z]/.test(value[i - 1])) i--;
+      value = value.slice(0, i - 1) + value.slice(i);
+      antes--;
+    }
+    const novo = formatar(value);
+    input.value = novo;
+    input.dataset.anterior = novo;
+    let cursor = 0, vistos = 0;
+    while (cursor < novo.length && vistos < antes) { if (/[0-9A-Za-z]/.test(novo[cursor])) vistos++; cursor++; }
+    if (document.activeElement === input) input.setSelectionRange(cursor, cursor);
+  });
+  input.addEventListener("focus", () => { input.dataset.anterior = input.value; });
+}

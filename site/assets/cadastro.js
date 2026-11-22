@@ -1,5 +1,5 @@
-import { $, api, aviso, definirErro } from "./comum.js";
-import { PAI_NAO_CONSTA, camposPendentes, limparTexto, mostrarTelefone, mostrarData, mostrarCpf, hojeSP, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
+import { $, api, aviso, definirErro, mascarar } from "./comum.js";
+import { PAI_NAO_CONSTA, camposPendentes, limparTexto, digitosTelefone, mascaraCpf, formatarRg, mostrarTelefone, mostrarData, mostrarCpf, hojeSP, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
 
 const form = $("#member-form");
 const selects = $("#funcao");
@@ -102,17 +102,16 @@ form.addEventListener("input", event => {
   if (error) definirErro(field, error, "");
   preview();
 });
-$("#telefone").addEventListener("blur", event => {
-  event.target.value = mostrarTelefone(event.target.value);
+mascarar($("#telefone"), value => digitosTelefone(value).length > 11 ? value : mostrarTelefone(value));
+mascarar($("#cpf"), mascaraCpf);
+$("#rg").addEventListener("blur", event => {
+  event.target.value = formatarRg(event.target.value);
 });
 $("#pai-nc").addEventListener("change", event => {
   const pai = $("#pai");
   pai.value = event.target.checked ? PAI_NAO_CONSTA : "";
   pai.readOnly = event.target.checked;
   definirErro(pai, $("#erro-pai"), "");
-});
-$("#cpf").addEventListener("blur", event => {
-  event.target.value = mostrarCpf(event.target.value);
 });
 previewButton.addEventListener("click", () => {
   const open = $("#visual-card").classList.toggle("is-open");

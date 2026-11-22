@@ -1,5 +1,5 @@
-import { $, api, aviso, linkArquivo } from "./comum.js";
-import { limparTexto, mostrarTelefone, mostrarCpf, camposPendentes, SITUACOES, validarDados } from "./dados.js";
+import { $, api, aviso, linkArquivo, mascarar } from "./comum.js";
+import { limparTexto, mostrarTelefone, mostrarCpf, mascaraCpf, formatarRg, digitosTelefone, camposPendentes, SITUACOES, validarDados } from "./dados.js";
 const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
 
 const base = "/api/secretaria";
@@ -383,3 +383,7 @@ window.addEventListener("pageshow", event => { if (event.persisted) location.rel
 document.addEventListener("visibilitychange", () => { if (!document.hidden && active) checkSession(false); });
 checkSession(true);
 
+
+mascarar($("#ed-telefone"), value => digitosTelefone(value).length > 11 ? value : mostrarTelefone(value));
+mascarar($("#ed-cpf"), mascaraCpf);
+$("#ed-rg").addEventListener("blur", event => { event.target.value = formatarRg(event.target.value); });

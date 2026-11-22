@@ -135,6 +135,19 @@ function cpfValido(value) {
   return true;
 }
 
+// Formata o CPF aos poucos, enquanto a pessoa digita: 000.000.000-00.
+function mascaraCpf(value) {
+  const d = digitosCpf(value).slice(0, 11);
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9)].filter(Boolean).join(".") + (d.length > 9 ? "-" + d.slice(9) : "");
+}
+
+// RG no formato de SP (8 números + dígito ou X) ganha pontos e traço; outros estados ficam como digitados.
+function formatarRg(value) {
+  const limpo = limparTexto(value).toUpperCase();
+  const base = limpo.replace(/[.\-\s\/]/g, "");
+  return /^\d{8}[\dX]$/.test(base) ? base.slice(0, 2) + "." + base.slice(2, 5) + "." + base.slice(5, 8) + "-" + base[8] : limpo;
+}
+
 function mostrarCpf(value) {
   const d = digitosCpf(value);
   return d.length === 11 ? d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9) : (value || "");
@@ -162,7 +175,7 @@ function validarDados(data) {
   const pai = limparTexto(data.pai);
   const mae = limparTexto(data.mae);
   const estado_civil = limparTexto(data.estado_civil);
-  const rg = limparTexto(data.rg).toUpperCase();
+  const rg = formatarRg(data.rg);
   const cpf = digitosCpf(data.cpf);
   const naturalidade = limparTexto(data.naturalidade);
   const hoje = hojeSP();
