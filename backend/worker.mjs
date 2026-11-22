@@ -1,5 +1,5 @@
 import { modeloInicial, completarModelo, conferirModelo, LIMITE_ARTE, pendenciasDaFicha } from "../site/assets/impressao/modelo.js";
-import { chaveBusca, limparTexto, mostrarTelefone, mostrarData, mostrarCpf, dataValida, hojeSP, validarDados, SITUACOES, VERSAO_CONSENTIMENTO } from "../site/assets/dados.js";
+import { chaveBusca, limparTexto, mostrarTelefone, mostrarData, mostrarCpf, dataValida, hojeSP, validarDados, versoDaFuncao, SITUACOES, VERSAO_CONSENTIMENTO } from "../site/assets/dados.js";
 
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "__Host-misrrev";
@@ -8,7 +8,7 @@ const SESSION_LONG_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_LIMIT = 480 * 1024;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const EXTRA_COLUMNS = ["nascimento","batismo","pai","mae","estado_civil","rg","cpf","naturalidade"];
-const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, " + EXTRA_COLUMNS.join(", ") + ", emissao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
+const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, " + EXTRA_COLUMNS.join(", ") + ", emissao, funcao_solicitada, funcao_aprovada, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
 const SAFETY_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   "X-Content-Type-Options": "nosniff",
@@ -129,8 +129,8 @@ async function submit(request, db, key) {
   const code = "MR-" + id.replace(/-/g, "").slice(-12).toUpperCase().match(/.{4}/g).join("-");
   const time = new Date().toISOString();
   const inserted = await db.prepare(
-    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?," + EXTRA_COLUMNS.map(() => "?").join(",") + ",?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
-  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), VERSAO_CONSENTIMENTO, time, time).first();
+    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,funcao_solicitada," + EXTRA_COLUMNS.join(",") + ",consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,?," + EXTRA_COLUMNS.map(() => "?").join(",") + ",?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
+  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), VERSAO_CONSENTIMENTO, time, time).first();
   if (inserted) return json({ protocolo: inserted.protocolo }, 201);
   const existing = await db.prepare("SELECT protocolo, resumo_envio FROM membros WHERE solicitacao=?").bind(data.solicitacao).first();
   if (existing?.resumo_envio !== digest) throw new HttpError(409, "Este envio já foi registrado com outros dados. Para uma correção, fale com a Julia.");
@@ -210,13 +210,13 @@ function csvCell(value) {
 async function exportMembers(request, db) {
   requireMethod(request, "POST");
   const f = filterFor(await readJson(request));
-  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",emissao,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
-  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Data de nascimento","Data de batismo","Pai","Mãe","Estado civil","RG","CPF","Natural de","Data de emissão","Matrícula","Situação","Foto anexada","Recebido em"];
+  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",emissao,funcao_solicitada,funcao_aprovada,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
+  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Data de nascimento","Data de batismo","Pai","Mãe","Estado civil","RG","CPF","Natural de","Data de emissão","Cargo solicitado","Cargo confirmado","Matrícula","Situação","Foto anexada","Recebido em"];
   const rows = [header.map(csvCell).join(";")];
   const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
   for (const m of data.results) {
     const time = dateFormat.format(new Date(m.recebido_em));
-    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,mostrarData(m.nascimento),mostrarData(m.batismo),m.pai,m.mae,m.estado_civil,m.rg,mostrarCpf(m.cpf),m.naturalidade,mostrarData(m.emissao),m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
+    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,mostrarData(m.nascimento),mostrarData(m.batismo),m.pai,m.mae,m.estado_civil,m.rg,mostrarCpf(m.cpf),m.naturalidade,mostrarData(m.emissao),m.funcao_solicitada,m.funcao_aprovada ? "Sim" : "Não",m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
   }
   return new Response("\uFEFF" + rows.join("\r\n") + "\r\n", { headers: { ...SAFETY_HEADERS, "Content-Type": "text/csv; charset=UTF-8", "Content-Disposition": 'attachment; filename="cadastros-misrrev.csv"' } });
 }
@@ -246,13 +246,15 @@ async function updateMember(request, db, id) {
   if (matricula && (!/^\d{1,12}$/.test(matricula) || !Number(matricula))) throw new HttpError(422, "Use de 1 a 12 dígitos para a matrícula.");
   if (!Object.hasOwn(SITUACOES, data.situacao)) throw new HttpError(422, "Selecione uma situação válida.");
   if (data.situacao === "emitido" && !matricula) throw new HttpError(422, "Informe a matrícula antes de marcar a carteirinha como emitida.");
+  const aprovada = data.funcao_aprovada === true ? 1 : 0;
+  if (data.situacao === "emitido" && !aprovada) throw new HttpError(422, "Confirme o cargo antes de marcar a carteirinha como emitida.");
   let emissao = limparTexto(data.emissao) || null;
   if (emissao && !dataValida(emissao)) throw new HttpError(422, "Confira a data de emissão.", { emissao: "Confira a data de emissão." });
   if (!emissao && data.situacao === "emitido") emissao = hojeSP();
   let result;
   try {
-    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?," + EXTRA_COLUMNS.map(k => k + "=?").join(",") + ",emissao=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
-      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), emissao, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
+    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?," + EXTRA_COLUMNS.map(k => k + "=?").join(",") + ",emissao=?,funcao_aprovada=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
+      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), emissao, aprovada, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
   } catch (error) {
     if (/UNIQUE constraint/i.test(String(error.message) + " " + String(error.cause?.message))) throw new HttpError(409, "Essa matrícula já pertence a outro cadastro.");
     throw error;
@@ -283,7 +285,7 @@ async function photo(request, db, id) {
   return json(await member(db, id));
 }
 
-const SELECT_MODELO = "SELECT m.revisao,m.configuracao,m.pagina_frente,m.pagina_verso,m.frente,m.verso,f.tipo AS tipo_frente,v.tipo AS tipo_verso FROM modelo_carteirinha m LEFT JOIN artes_carteirinha f ON f.chave=m.frente LEFT JOIN artes_carteirinha v ON v.chave=m.verso WHERE m.id=1";
+const SELECT_MODELO = "SELECT m.revisao,m.configuracao,m.pagina_frente,m.pagina_verso,m.pagina_verso2,m.frente,m.verso,m.verso2,f.tipo AS tipo_frente,v.tipo AS tipo_verso,v2.tipo AS tipo_verso2 FROM modelo_carteirinha m LEFT JOIN artes_carteirinha f ON f.chave=m.frente LEFT JOIN artes_carteirinha v ON v.chave=m.verso LEFT JOIN artes_carteirinha v2 ON v2.chave=m.verso2 WHERE m.id=1";
 const CHAVE_ARTE = /^[0-9a-f]{64}$/;
 const TAMANHO_BLOCO = 384 * 1024;
 
@@ -293,7 +295,8 @@ function modeloDaLinha(row) {
     revisao: row.revisao,
     config: row.revisao ? completarModelo(JSON.parse(row.configuracao)) : modeloInicial(),
     frente: row.frente ? { chave:row.frente, pagina:row.pagina_frente, tipo:row.tipo_frente } : null,
-    verso: row.verso ? { chave:row.verso, pagina:row.pagina_verso, tipo:row.tipo_verso } : null
+    verso: row.verso ? { chave:row.verso, pagina:row.pagina_verso, tipo:row.tipo_verso } : null,
+    verso2: row.verso2 ? { chave:row.verso2, pagina:row.pagina_verso2, tipo:row.tipo_verso2 } : null
   };
 }
 
@@ -318,7 +321,7 @@ async function receberArte(request, db) {
   if (!tipo || request.headers.get("Content-Type") !== tipo) throw new HttpError(415, "Envie a arte em PDF, PNG ou JPEG.");
   const chave = hex(await crypto.subtle.digest("SHA-256", bytes));
   const now = Math.floor(Date.now()/1000);
-  const cleanup = db.prepare("DELETE FROM artes_carteirinha WHERE criada_em < ? AND NOT EXISTS (SELECT 1 FROM modelo_carteirinha WHERE frente=artes_carteirinha.chave OR verso=artes_carteirinha.chave)").bind(now-86400);
+  const cleanup = db.prepare("DELETE FROM artes_carteirinha WHERE criada_em < ? AND NOT EXISTS (SELECT 1 FROM modelo_carteirinha WHERE frente=artes_carteirinha.chave OR verso=artes_carteirinha.chave OR verso2=artes_carteirinha.chave)").bind(now-86400);
   const statements = [cleanup, db.prepare("INSERT INTO artes_carteirinha(chave,tipo,tamanho,criada_em) VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET criada_em=excluded.criada_em").bind(chave,tipo,bytes.length,now)];
   for (let i=0;i<bytes.length;i+=TAMANHO_BLOCO) {
     const text = base64DeBloco(bytes.subarray(i,i+TAMANHO_BLOCO));
@@ -358,13 +361,14 @@ async function modeloDaSecretaria(request, db) {
   requireMethod(request, "PUT");
   const data = await readJson(request);
   if (!Number.isSafeInteger(data.revisao) || data.revisao<0) throw new HttpError(422, "Reabra o modelo antes de salvar.");
-  try { conferirModelo(data.config, Boolean(data.verso)); }
+  try { conferirModelo(data.config, Boolean(data.verso || data.verso2)); }
   catch (error) { throw new HttpError(422,error.message); }
   await confirmarLado(db,data.frente);
   if (data.verso) await confirmarLado(db,data.verso);
+  if (data.verso2) await confirmarLado(db,data.verso2);
   const [updated, saved] = await db.batch([
-    db.prepare("UPDATE modelo_carteirinha SET revisao=revisao+1,configuracao=?,frente=?,pagina_frente=?,verso=?,pagina_verso=? WHERE id=1 AND revisao=?")
-      .bind(JSON.stringify(data.config),data.frente.chave,data.frente.pagina,data.verso?.chave || null,data.verso?.pagina || 1,data.revisao),
+    db.prepare("UPDATE modelo_carteirinha SET revisao=revisao+1,configuracao=?,frente=?,pagina_frente=?,verso=?,pagina_verso=?,verso2=?,pagina_verso2=? WHERE id=1 AND revisao=?")
+      .bind(JSON.stringify(data.config),data.frente.chave,data.frente.pagina,data.verso?.chave || null,data.verso?.pagina || 1,data.verso2?.chave || null,data.verso2?.pagina || 1,data.revisao),
     db.prepare(SELECT_MODELO)
   ]);
   if (!updated.meta.changes) throw new HttpError(409, "A arte foi alterada em outra sessão. Recarregue a página para abrir a versão salva.");
@@ -376,7 +380,7 @@ async function fichasParaImpressao(request, db) {
   const data = await readJson(request);
   const situacao = data.situacao || "";
   if (situacao && !Object.hasOwn(SITUACOES,situacao)) throw new HttpError(422, "Selecione uma situação válida.");
-  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone," + EXTRA_COLUMNS.join(",") + ",emissao,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
+  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone," + EXTRA_COLUMNS.join(",") + ",emissao,funcao_aprovada,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
   const [model,records] = await db.batch([db.prepare(SELECT_MODELO),situacao ? db.prepare(sql).bind(situacao) : db.prepare(sql)]);
   const saved = modeloDaLinha(model.results[0]);
   if (!saved.frente) throw new HttpError(422, "Salve a arte definitiva para preparar o lote.");
@@ -387,6 +391,9 @@ async function fichasParaImpressao(request, db) {
     // Sem data de emissão registrada, a carteirinha sai com a data da impressão.
     ficha.emissao ||= hoje;
     const faltam = pendenciasDaFicha(saved.config.campos,ficha);
+    if (!ficha.funcao_aprovada) faltam.push("Cargo confirmado pela secretaria");
+    const verso = versoDaFuncao(ficha.funcao);
+    if ((saved.verso || saved.verso2) && !saved[verso]) faltam.push(verso === "verso" ? "Arte do verso de Presbítero, Evangelista e Pastores" : "Arte do verso dos demais cargos");
     if (faltam.length) pendentes.push({ nome:ficha.nome,protocolo:ficha.protocolo,faltam });
     else {
       if (saved.config.campos.telefone.lado === "oculto") delete ficha.telefone;

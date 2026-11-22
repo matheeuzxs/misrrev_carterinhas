@@ -86,6 +86,7 @@ function rowCard(m) {
   small.textContent = (m.matricula ? "Matrícula " + m.matricula : m.protocolo) + " · " + shortDate(m.recebido_em);
   text.append(name, small);
   const faltam = camposPendentes(m);
+  if (!m.funcao_aprovada) faltam.unshift("confirmar cargo (" + m.funcao + ")");
   if (faltam.length) {
     const pend = document.createElement("small");
     pend.className = "row-missing";
@@ -216,9 +217,12 @@ function fillFields(m) {
   $("#ed-funcao").value = m.funcao;
   for (const k of EXTRAS) $("#ed-" + k).value = (k === "cpf" ? mostrarCpf(m.cpf) : m[k]) || "";
   $("#ed-emissao").value = m.emissao || "";
+  $("#ed-funcao_aprovada").checked = Boolean(m.funcao_aprovada);
+  $("#ed-funcao-pedido").textContent = m.funcao_solicitada ? "Escolhido pelo membro: " + m.funcao_solicitada : "";
   const faltam = camposPendentes(m);
+  if (!m.funcao_aprovada) faltam.unshift("confirmar o cargo");
   $("#record-missing").hidden = !faltam.length;
-  $("#record-missing").textContent = faltam.length ? "Falta completar com o membro: " + faltam.join(", ") + "." : "";
+  $("#record-missing").textContent = faltam.length ? "Pendências: " + faltam.join(", ") + "." : "";
   for (const k of EXTRAS) $("#ed-" + k).classList.toggle("is-missing", !m[k]);
   $("#ed-matricula").value = m.matricula || "";
   $("#ed-situacao").value = m.situacao;
@@ -288,7 +292,7 @@ recordForm.addEventListener("submit", async event => {
   }
   setBusy(true);
   try {
-    current = await staff("/membros/" + current.id, { method: "PATCH", json: { ...fields, emissao: $("#ed-emissao").value, matricula: $("#ed-matricula").value, situacao: $("#ed-situacao").value, revisao: current.revisao } });
+    current = await staff("/membros/" + current.id, { method: "PATCH", json: { ...fields, emissao: $("#ed-emissao").value, funcao_aprovada: $("#ed-funcao_aprovada").checked, matricula: $("#ed-matricula").value, situacao: $("#ed-situacao").value, revisao: current.revisao } });
     fillFields(current);
     aviso($("#record-msg"), "Ficha salva.", true);
     await loadList(page);

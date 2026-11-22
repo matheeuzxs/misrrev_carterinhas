@@ -1,4 +1,9 @@
-export const FUNCOES = ["Membro","Cooperador(a)","Diácono(a)","Diaconisa","Presbítero(a)","Evangelista","Missionário(a)","Pastor(a)","Outro"];
+export const FUNCOES = ["Membro","Cooperador(a)","Diácono","Diaconisa","Presbítero","Evangelista","Pastor(a)","Pastor-presidente","Pastora-presidente"];
+// Estes cargos usam o verso com a Constituição; os demais usam o verso dos demais cargos.
+export const FUNCOES_MINISTERIAIS = ["Presbítero","Evangelista","Pastor(a)","Pastor-presidente","Pastora-presidente"];
+export function versoDaFuncao(funcao) {
+  return FUNCOES_MINISTERIAIS.includes(funcao) ? "verso" : "verso2";
+}
 export const SITUACOES = { recebido: "Recebido", conferido: "Conferido", emitido: "Emitido" };
 export const ESTADOS_CIVIS = ["Solteiro(a)","Casado(a)","Divorciado(a)","Viúvo(a)","União estável"];
 export const PAI_NAO_CONSTA = "Não consta";
@@ -100,7 +105,7 @@ export function validarDados(data) {
   if (ano && (!/^\d{4}$/.test(ano) || Number(ano) < 1900 || Number(ano) > anoAtual())) {
     errors.ano = "Informe um ano entre 1900 e " + anoAtual() + " ou deixe em branco.";
   }
-  if (!textoValido(funcao, 45)) errors.funcao = "Informe uma função de até 45 caracteres.";
+  if (!FUNCOES.includes(funcao)) errors.funcao = "Escolha o cargo na lista.";
   // Campos em branco não impedem o envio; ficam como pendência para a secretaria. Só valores inválidos bloqueiam.
   if (nascimento && (!dataValida(nascimento) || nascimento < "1900-01-01" || nascimento > hoje)) errors.nascimento = "Confira a data de nascimento.";
   if (batismo && (!dataValida(batismo) || batismo < "1900-01-01" || batismo > hoje)) errors.batismo = "Confira a data de batismo.";

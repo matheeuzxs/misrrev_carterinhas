@@ -3,9 +3,11 @@ import { modeloInicial, conferirModelo, LIMITE_ARTE } from "./modelo.js";
 import { lerFundo, dimensoesFundo, conferirProporcao, montarFolha, gerarPdf } from "./pdf.js";
 
 const apiBase="/api/secretaria/carteirinhas";
-const refs={ frente:null,verso:null };
-const exemplo={ nome:"Ana Oliveira",matricula:"0001",funcao:"Membro",ano:2024,telefone:"11999990000",nascimento:"1990-05-12",batismo:"2015-08-30",pai:"José Oliveira",mae:"Maria Oliveira",estado_civil:"Casado(a)",rg:"12.345.678-9",cpf:"52998224725",emissao:"2026-11-22",naturalidade:"Guarulhos - SP" };
-const botoesLado=["frente","verso"];
+const refs={ frente:null,verso:null,verso2:null };
+const exemplo={ nome:"Ana Oliveira",matricula:"0001",funcao:"Pastor(a)",ano:2024,telefone:"11999990000",nascimento:"1990-05-12",batismo:"2015-08-30",pai:"José Oliveira",mae:"Maria Oliveira",estado_civil:"Casado(a)",rg:"12.345.678-9",cpf:"52998224725",emissao:"2026-11-22",naturalidade:"Guarulhos - SP" };
+const botoesLado=["frente","verso","verso2"];
+// Os campos marcados como "verso" aparecem nos dois versos; o fundo muda conforme o cargo.
+const ladoDosCampos=f=>f==="frente"?"frente":"verso";
 let salvo={ revisao:0 }, model=modeloInicial(), selecionado="nome", face="frente";
 let alterado=false, ocupado=false, lote=null, consultando=false, leitura=0, pintura=0, timer;
 let pdfjs, arquivoGerado="";
@@ -54,7 +56,9 @@ function atualizarArquivos() {
     $("#info-"+side).textContent=detail;
   }
   $("#remove-back").hidden=!refs.verso;
+  $("#remove-back2").hidden=!refs.verso2;
   $("#view-verso").disabled=!refs.verso;
+  $("#view-verso2").disabled=!refs.verso2;
 }
 function atualizarCampos() {
   const f=model.campos[selecionado];
@@ -92,7 +96,7 @@ async function renderizarPrevia(token) {
   const m=structuredClone(model), currentFace=face, chosen=selecionado;
   let doc;
   try {
-    conferirModelo(m,Boolean(refs.verso));
+    conferirModelo(m,Boolean(refs.verso||refs.verso2));
     const bytes=await gerarPdf({ model:m,artes:{[currentFace]:actual},fichas:[exemplo],papel:"individual",prova:true,ladoProva:currentFace,marcasDeCorte:false });
     if(token!==pintura)return;
     pdfjs ||= await import("./vendor/pdfjs/pdf.mjs");
@@ -109,7 +113,7 @@ async function renderizarPrevia(token) {
     canvas.width=scratch.width;canvas.height=scratch.height;
     const ctx=canvas.getContext("2d");ctx.drawImage(scratch,0,0);
     const campo=m.campos[chosen],rX=canvas.width/(m.largura+2*m.sangria),rY=canvas.height/(m.altura+2*m.sangria);
-    if(campo.lado===currentFace) {
+    if(campo.lado===ladoDosCampos(currentFace)) {
       const rect=[(campo.x+m.sangria)*rX,(campo.y+m.sangria)*rY,campo.w*rX,campo.h*rY];
       ctx.lineWidth=3;ctx.strokeStyle="#ffffff";ctx.strokeRect(...rect);
       ctx.lineWidth=2;ctx.strokeStyle="#1564a8";ctx.setLineDash([7,4]);ctx.strokeRect(...rect);
@@ -137,7 +141,7 @@ async function selecionarArquivo(side,file) {
     if(file.size>LIMITE_ARTE)throw new Error("O limite é 6 MB por arquivo de arte.");
     const bytes=new Uint8Array(await file.arrayBuffer());
     const art=await lerFundo(bytes,sniff(bytes));
-    const page=side==="verso" && art.paginas===2 ? 2:1;
+    const page=side!=="frente" && art.paginas===2 ? 2:1;
     refs[side]={ art,pagina:page,chave:null };
     if(side==="frente" && art.paginas===2) refs.verso={art,pagina:2,chave:null};
     atualizarArquivos();mudou();mudarFace(side);
@@ -151,17 +155,20 @@ for(const side of botoesLado){
 $("#remove-back").addEventListener("click",()=>{
   refs.verso=null;atualizarArquivos();mudou();mudarFace("frente");
 });
+$("#remove-back2").addEventListener("click",()=>{
+  refs.verso2=null;atualizarArquivos();mudou();mudarFace("frente");
+});
 for(const k of ["largura","altura","sangria"]){
   $("#"+k).addEventListener("input",()=>{model[k]=numberInput(k);atualizarArquivos();mudou();});
 }
 $("#campo").addEventListener("change",e=>{
   selecionado=e.target.value;atualizarCampos();
   const side=model.campos[selecionado].lado;
-  if(side!=="oculto")mudarFace(side);else agendarPrevia();
+  if(side==="frente")mudarFace("frente");else if(side==="verso")mudarFace(face==="verso2"&&refs.verso2?"verso2":refs.verso?"verso":"verso2");else agendarPrevia();
 });
 $("#lado").addEventListener("change",e=>{
   model.campos[selecionado].lado=e.target.value;atualizarCampos();mudou();
-  if(e.target.value!=="oculto")mudarFace(e.target.value);
+  if(e.target.value==="frente")mudarFace("frente");else if(e.target.value==="verso")mudarFace(refs.verso?"verso":"verso2");else agendarPrevia();
 });
 for(const prop of ["x","y","w","h","pt","cor","fonte","alinhar","negrito"]) {
   const el=$("#"+prop);
@@ -173,7 +180,7 @@ for(const prop of ["x","y","w","h","pt","cor","fonte","alinhar","negrito"]) {
 $("#proof-canvas").addEventListener("click",e=>{
   if(ocupado || e.currentTarget.getAttribute("aria-busy")==="true")return;
   const campo=model.campos[selecionado];
-  if(campo.lado!==face || !Number.isFinite(campo.w) || !Number.isFinite(campo.h))return;
+  if(campo.lado!==ladoDosCampos(face) || !Number.isFinite(campo.w) || !Number.isFinite(campo.h))return;
   const bounds=e.currentTarget.getBoundingClientRect();
   const pos=(v,max)=>Number(Math.max(0,Math.min(v,max)).toFixed(2));
   campo.x=pos((e.clientX-bounds.left)/bounds.width*(model.largura+2*model.sangria)-model.sangria-campo.w/2,model.largura-campo.w);
@@ -186,11 +193,11 @@ async function salvar() {
   setBusy(true);
   try {
     if(!refs.frente)throw new Error("Escolha a arte definitiva da frente.");
-    conferirModelo(model,Boolean(refs.verso));
+    conferirModelo(model,Boolean(refs.verso||refs.verso2));
     for(const s of botoesLado) if(refs[s]) conferirProporcao(refs[s].art,refs[s].pagina,model,s);
     aviso($("#config-msg"),"Salvando a arte e as posições…",true);
     const cache=new Map();
-    const data={revisao:salvo.revisao,config:model,frente:null,verso:null};
+    const data={revisao:salvo.revisao,config:model,frente:null,verso:null,verso2:null};
     for(const side of botoesLado) {
       const ref=refs[side];if(!ref)continue;
       if(!ref.chave){

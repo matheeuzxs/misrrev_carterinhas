@@ -48,8 +48,8 @@ function modeloSoFrente() {
 }
 function cadastrar(db,i,temMatricula=true) {
   const id=crypto.randomUUID(),mat=String(i).padStart(4,"0"),name="Ficha "+mat;
-  db.prepare("INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,matricula,situacao,consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(id,crypto.randomUUID(),"teste","TESTE-"+mat,name,name,"11900000000",null,"Membro",temMatricula?mat:null,i%2?"conferido":"recebido","teste","2026-01-01","2026-01-01").run();
+  db.prepare("INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,funcao_aprovada,matricula,situacao,consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)")
+    .bind(id,crypto.randomUUID(),"teste","TESTE-"+mat,name,name,"11900000000",null,"Presbítero",temMatricula?mat:null,i%2?"conferido":"recebido","teste","2026-01-01","2026-01-01").run();
   return id;
 }
 test("a migração acrescenta o modelo e preserva os membros de um banco da primeira versão",async t=>{
@@ -81,6 +81,12 @@ test("apenas a equipe publica a arte, recupera todos os blocos e troca o modelo 
   const batch=await (await call(base+"/lote","POST",{revisao:1})).json();assert.equal(batch.prontas.length,27);assert.equal(batch.pendentes.length,2);
   assert.deepEqual(batch.pendentes[0].faltam,["Matrícula"]);assert.equal(batch.prontas[0].telefone,undefined);
   const filtered=await (await call(base+"/lote","POST",{revisao:1,situacao:"conferido"})).json();assert.equal(filtered.prontas.length,14);
+  const membro=cadastrar(db,30);db.prepare("UPDATE membros SET funcao='Membro' WHERE id=?").bind(membro).run();
+  const semVerso=await (await call(base+"/lote","POST",{revisao:1})).json();
+  assert.deepEqual(semVerso.pendentes.find(p=>p.protocolo==="TESTE-0030").faltam,["Arte do verso dos demais cargos"]);
+  db.prepare("UPDATE membros SET funcao_aprovada=0 WHERE id=?").bind(membro).run();
+  assert.ok((await (await call(base+"/lote","POST",{revisao:1})).json()).pendentes.find(p=>p.protocolo==="TESTE-0030").faltam.includes("Cargo confirmado pela secretaria"));
+  db.prepare("DELETE FROM membros WHERE id=?").bind(membro).run();
   cfg.campos.foto.lado="frente";cfg.campos.ano.lado="verso";
   const next=await call(base+"/modelo","PUT",{...data,config:cfg,revisao:1});assert.equal(next.status,200);
   assert.equal((await call(base+"/lote","POST",{revisao:1})).status,409);
@@ -91,7 +97,7 @@ test("apenas a equipe publica a arte, recupera todos os blocos e troca o modelo 
 test("o PDF reúne mais de uma página da lista, alterna faces e espelha os lugares do verso",async()=>{
   const model=modeloSoFrente();model.campos.foto.lado="oculto";model.campos.matricula.lado="verso";
   const art=await lerFundo(await arte(),"application/pdf"),artes={frente:{art,pagina:1},verso:{art,pagina:2}};
-  const fichas=Array.from({length:27},(_,i)=>({nome:"Membro "+(i+1),matricula:String(i+1).padStart(4,"0"),funcao:"Diácono"}));
+  const fichas=Array.from({length:27},(_,i)=>({nome:"Membro "+(i+1),matricula:String(i+1).padStart(4,"0"),funcao:"Presbítero"}));
   const output=await gerarPdf({model,artes,fichas});
   const doc=await PDFDocument.load(output);assert.equal(doc.getPageCount(),6);
   const l=montarFolha(model,"A4");assert.equal(l.capacidade,10);

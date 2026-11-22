@@ -31,7 +31,7 @@ test("CPF e datas são validados", () => {
 test("grava a ficha completa, recusa dados inválidos e exporta todas as colunas", async t => {
   const { req, login } = servico(t);
   for (const c of [{ nome: "" }, { telefone: "" }, { nascimento: "2099-01-01" }, { nascimento: "1990-02-30" }, { cpf: "123.456.789-00" },
-    { batismo: "1980-01-01" }, { estado_civil: "Noivo" }]) {
+    { batismo: "1980-01-01" }, { estado_civil: "Noivo" }, { funcao: "Outro" }, { funcao: "Bispo" }]) {
     assert.equal((await req("/api/cadastros", "POST", ficha(c))).status, 422, JSON.stringify(c));
   }
   for (const k of ["rg","cpf"]) assert.equal((await req("/api/cadastros", "POST", ficha({ [k]: "" }))).status, 422, "obrigatório: " + k);
@@ -44,7 +44,10 @@ test("grava a ficha completa, recusa dados inválidos e exporta todas as colunas
   assert.equal(lista.total, 1);
   const m = lista.membros[0];
   assert.equal(m.cpf, "52998224725"); assert.equal(m.mae, "Maria Oliveira"); assert.equal(m.nascimento, "1990-05-12");
-  const emitida = await (await req("/api/secretaria/membros/" + m.id, "PATCH", { ...m, matricula: "12", situacao: "emitido" }, c)).json();
+  assert.equal(m.funcao_solicitada, "Membro"); assert.equal(m.funcao_aprovada, 0);
+  assert.equal((await req("/api/secretaria/membros/" + m.id, "PATCH", { ...m, matricula: "12", situacao: "emitido" }, c)).status, 422);
+  const emitida = await (await req("/api/secretaria/membros/" + m.id, "PATCH", { ...m, matricula: "12", situacao: "emitido", funcao_aprovada: true }, c)).json();
+  assert.equal(emitida.funcao_aprovada, 1);
   assert.match(emitida.emissao, /^\d{4}-\d{2}-\d{2}$/);
   const csv = await (await req("/api/secretaria/exportar", "POST", {}, c)).text();
   assert.match(csv, /Data de nascimento.*CPF.*Natural de.*Data de emissão/);

@@ -31,6 +31,9 @@ export function abrirBanco(path = ":memory:") {
   if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('membros') WHERE name='nascimento'").get()) {
     sqlite.exec(readFileSync(new URL("../banco/004_ficha_completa.sql", import.meta.url), "utf8"));
   }
+  if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('membros') WHERE name='funcao_aprovada'").get()) {
+    sqlite.exec(readFileSync(new URL("../banco/005_cargo_e_versos.sql", import.meta.url), "utf8"));
+  }
   if (!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name='configuracao'").get()) {
     sqlite.exec(readFileSync(new URL("../banco/003_configuracao.sql", import.meta.url), "utf8"));
   }

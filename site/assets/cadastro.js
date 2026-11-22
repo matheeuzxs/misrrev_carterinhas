@@ -12,7 +12,7 @@ const firstStep = $("#step-label-1");
 const secondStep = $("#step-label-2");
 const previewButton = $("#preview-toggle");
 const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
-const errorEls = { nome: $("#nome"), telefone: $("#telefone"), funcao: $("#outra"), ...Object.fromEntries(EXTRAS.map(k => [k, $("#" + k)])) };
+const errorEls = { nome: $("#nome"), telefone: $("#telefone"), funcao: $("#funcao"), ...Object.fromEntries(EXTRAS.map(k => [k, $("#" + k)])) };
 let values;
 let requestId = null;
 let sending = false;
@@ -24,7 +24,7 @@ function getData() {
   return {
     nome: $("#nome").value,
     telefone: $("#telefone").value,
-    funcao: selects.value === "Outro" ? $("#outra").value : selects.value,
+    funcao: selects.value,
     ...Object.fromEntries(EXTRAS.map(k => [k, $("#" + k).value]))
   };
 }
@@ -76,7 +76,7 @@ function buildReview(data) {
   const dl = $("#review-data");
   const rows = [
     ["Nome completo", data.nome], ["Telefone com DDD", mostrarTelefone(data.telefone)],
-    ["Função na igreja", data.funcao], ["Data de nascimento", mostrarData(data.nascimento) || F],
+    ["Cargo na igreja", data.funcao + " (a confirmar pela secretaria)"], ["Data de nascimento", mostrarData(data.nascimento) || F],
     ["Data de batismo", mostrarData(data.batismo) || F], ["Estado civil", data.estado_civil || F],
     ["Natural de", data.naturalidade || F], ["Pai", data.pai || F], ["Mãe", data.mae || F],
     ["RG", data.rg || F], ["CPF", mostrarCpf(data.cpf) || F]
@@ -100,10 +100,6 @@ form.addEventListener("input", event => {
   }
   const error = $("#erro-" + field.id);
   if (error) definirErro(field, error, "");
-  if (field === selects) {
-    $("#other-wrap").hidden = selects.value !== "Outro";
-    if (selects.value !== "Outro") $("#outra").value = "";
-  }
   preview();
 });
 $("#telefone").addEventListener("blur", event => {
@@ -164,7 +160,6 @@ form.addEventListener("submit", async event => {
     $("#review-data").replaceChildren();
     values = undefined;
     requestId = null;
-    $("#other-wrap").hidden = true;
     $("#pai").readOnly = false;
     preview();
     stage(3);

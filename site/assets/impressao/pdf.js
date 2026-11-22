@@ -1,11 +1,11 @@
 import { PDFDocument, StandardFonts, degrees, rgb, grayscale, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from "./vendor/pdf-lib.js";
 import { CAMPOS_CARTAO, conferirModelo } from "./modelo.js";
-import { mostrarTelefone, mostrarData, mostrarCpf } from "../dados.js";
+import { mostrarTelefone, mostrarData, mostrarCpf, versoDaFuncao } from "../dados.js";
 
 const PT = 72 / 25.4;
 const PAPEL = { A4:[210,297], A3:[297,420], SRA3:[320,450] };
 const mm = value => value * PT;
-const faceLabel = side => side === "frente" ? "frente" : "verso";
+const faceLabel = side => side === "frente" ? "frente" : side === "verso2" ? "verso dos demais cargos" : "verso de Presbítero, Evangelista e Pastores";
 
 export function montarFolha(model, papel = "A4") {
   const w=model.largura+2*model.sangria, h=model.altura+2*model.sangria;
@@ -193,19 +193,25 @@ function marcas(page,model,x,y) {
 
 export async function gerarPdf({model,artes,fichas,papel="A4",virada="longa",marcasDeCorte=true,getFoto,onProgress,prova=false,ladoProva="frente",signal}) {
   if(!fichas?.length) throw new Error("Nenhuma carteirinha disponível para este PDF.");
-  if(!prova) conferirModelo(model,Boolean(artes.verso));
+  if(!prova) conferirModelo(model,Boolean(artes.verso||artes.verso2));
   const layout=montarFolha(model,papel);
   const doc=await PDFDocument.create();
   doc.setTitle(prova?"Prova de posição • MISRREV":"Carteirinhas de membros • MISRREV");
   doc.setCreator("Secretaria MISRREV");
   const fonts={};
   for(const [id,face] of Object.entries({sansR:StandardFonts.Helvetica,sansB:StandardFonts.HelveticaBold,serifR:StandardFonts.TimesRoman,serifB:StandardFonts.TimesRomanBold})) fonts[id]=await doc.embedFont(face);
-  const lados=prova ? [ladoProva] : artes.verso ? ["frente","verso"]:["frente"];
+  // Páginas: frente e verso. O fundo do verso depende do cargo (versoDaFuncao); na prova, do lado escolhido.
+  const lados=prova ? [ladoProva==="frente"?"frente":"verso"] : (artes.verso||artes.verso2) ? ["frente","verso"]:["frente"];
   const fundos={};
-  for(const side of lados){
-    if(!artes[side]) throw new Error("Adicione a arte de "+faceLabel(side)+".");
-    fundos[side]=await embutirFundo(doc,artes[side],model,side);
+  for(const key of prova ? [ladoProva] : ["frente","verso","verso2"]){
+    if(!artes[key]) { if(prova || key==="frente") throw new Error("Adicione a arte de "+faceLabel(key)+"."); continue; }
+    fundos[key]=await embutirFundo(doc,artes[key],model,key);
   }
+  const fundoDe=(side,ficha)=>{
+    const key=side==="frente" ? "frente" : prova ? ladoProva : versoDaFuncao(ficha.funcao);
+    if(!fundos[key]) throw new Error("Falta a arte do "+faceLabel(key)+" para "+ficha.nome+" ("+ficha.funcao+").");
+    return fundos[key];
+  };
   let done=0;
   for(let start=0; start<fichas.length; start+=layout.capacidade) {
     const grupo=fichas.slice(start,start+layout.capacidade);
@@ -225,7 +231,7 @@ export async function gerarPdf({model,artes,fichas,papel="A4",virada="longa",mar
       for(const side of lados) {
         const page=pages[side], pos=posicaoNaFolha(layout,i,side,virada);
         const x=mm(pos.x), y=mm(pos.y), left=x+mm(model.sangria), top=y+mm(model.altura+model.sangria);
-        desenharFundo(page,fundos[side],x,y,mm(layout.cartaoW),mm(layout.cartaoH));
+        desenharFundo(page,fundoDe(side,ficha),x,y,mm(layout.cartaoW),mm(layout.cartaoH));
         const photo=model.campos.foto;
         if(photo.lado===side) dadosFoto(page,image,photo,left+mm(photo.x),top-mm(photo.y),fonts.sansR,prova);
         for(const [key,c] of Object.entries(model.campos)) {
