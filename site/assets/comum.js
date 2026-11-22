@@ -54,3 +54,39 @@ export function linkArquivo(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+
+// Avisa quem está com a página aberta quando uma versão nova do site é publicada.
+async function versaoPublicada() {
+  try {
+    const res = await fetch("/api/versao", { cache: "no-store", credentials: "same-origin" });
+    return res.ok ? (await res.json()).versao : null;
+  } catch { return null; }
+}
+function mostrarAvisoDeVersao() {
+  if (document.getElementById("aviso-versao")) return;
+  const bar = document.createElement("div");
+  bar.id = "aviso-versao";
+  bar.className = "update-bar";
+  bar.setAttribute("role", "status");
+  const text = document.createElement("span");
+  text.textContent = "Há uma nova versão do site. Atualize antes de continuar.";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn primary";
+  button.textContent = "Atualizar";
+  button.addEventListener("click", () => location.reload());
+  bar.append(text, button);
+  document.body.append(bar);
+}
+if (typeof document !== "undefined") {
+  let inicial = null;
+  const conferir = async () => {
+    const atual = await versaoPublicada();
+    if (!atual) return;
+    if (inicial === null) inicial = atual;
+    else if (atual !== inicial) mostrarAvisoDeVersao();
+  };
+  conferir();
+  setInterval(conferir, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") conferir(); });
+}

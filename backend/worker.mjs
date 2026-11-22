@@ -464,6 +464,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+    // Identifica a implantação atual; as páginas abertas comparam para avisar sobre atualização.
+    if (url.pathname === "/api/versao") return json({ versao: env.CF_VERSION_METADATA?.id || "local" });
     try {
       return await handle(request, env, url);
     } catch (error) {
