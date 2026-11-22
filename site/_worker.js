@@ -486,10 +486,25 @@ async function fichasParaImpressao(request, db) {
 }
 
 
+function senhaValida(secret) {
+  return typeof secret === "string" && secret.length >= 16 && secret.length <= 256;
+}
+
+// Usada quando o segredo SENHA_SECRETARIA não foi definido no painel do Cloudflare.
+async function senhaDoBanco(db) {
+  try {
+    const row = await db.prepare("SELECT valor FROM configuracao WHERE chave='senha_secretaria'").first();
+    return row?.valor;
+  } catch {
+    return undefined;
+  }
+}
+
 async function handle(request, env, url) {
   methodOrigin(request, url);
   const db = env.MEMBROS_DB;
-  const secret = env.SENHA_SECRETARIA;
+  let secret = env.SENHA_SECRETARIA;
+  if (db && !senhaValida(secret)) secret = await senhaDoBanco(db);
   if (!db || typeof secret !== "string" || secret.length < 16 || secret.length > 256) throw new HttpError(503, "O cadastro está temporariamente indisponível. Tente novamente mais tarde.");
   const path = url.pathname;
   if (path === "/api/pronto") {
