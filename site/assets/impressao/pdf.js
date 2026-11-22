@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, degrees, rgb, grayscale, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from "./vendor/pdf-lib.js";
+import { PDFDocument, PrintScaling, StandardFonts, degrees, rgb, grayscale, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from "./vendor/pdf-lib.js";
 import { CAMPOS_CARTAO, conferirModelo } from "./modelo.js";
 import { mostrarTelefone, mostrarData, mostrarCpf, versoDaFuncao } from "../dados.js";
 
@@ -198,6 +198,8 @@ export async function gerarPdf({model,artes,fichas,papel="A4",virada="longa",mar
   const doc=await PDFDocument.create();
   doc.setTitle(prova?"Prova de posição • MISRREV":"Carteirinhas de membros • MISRREV");
   doc.setCreator("Secretaria MISRREV");
+  // Pede ao leitor de PDF para imprimir em tamanho real, sem ampliar para a folha.
+  try { doc.catalog.getOrCreateViewerPreferences().setPrintScaling(PrintScaling.None); } catch {}
   const fonts={};
   for(const [id,face] of Object.entries({sansR:StandardFonts.Helvetica,sansB:StandardFonts.HelveticaBold,serifR:StandardFonts.TimesRoman,serifB:StandardFonts.TimesRomanBold})) fonts[id]=await doc.embedFont(face);
   // Páginas: frente e verso. O fundo do verso depende do cargo (versoDaFuncao); na prova, do lado escolhido.

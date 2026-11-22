@@ -352,7 +352,8 @@ async function exportar(uma) {
     if(mudouLista)throw new Error("As fichas mudaram. Confira a nova contagem e exporte novamente.");
     const fichas=uma?selecionadas().slice(0,1):selecionadas();
     if(!fichas.length)throw new Error("Marque pelo menos um nome para imprimir.");
-    const papel=uma?"individual":$("#papel").value;
+    // A prova sai na folha escolhida (A4 por padrão), em tamanho real, para conferir a medida na impressora.
+    const papel=$("#papel").value;
     aviso($("#batch-msg"),"Preparando o PDF…",true);
     const bytes=await gerarPdf({
       model:salvo.config,artes:refs,fichas,papel,virada:$("#virada").value,marcasDeCorte:$("#marks").checked,
