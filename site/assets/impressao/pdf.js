@@ -236,7 +236,7 @@ export async function gerarPdf({model,artes,fichas,papel="A4",virada="longa",mar
         if(photo.lado===side) dadosFoto(page,image,photo,left+mm(photo.x),top-mm(photo.y),fonts.sansR,prova);
         for(const [key,c] of Object.entries(model.campos)) {
           if(key==="foto" || c.lado!==side || !Object.hasOwn(CAMPOS_CARTAO,key)) continue;
-          const texto=key==="telefone" ? mostrarTelefone(ficha.telefone) : key==="cpf" ? mostrarCpf(ficha.cpf) : ["nascimento","batismo","emissao"].includes(key) ? mostrarData(ficha[key]) : String(ficha[key]??"");
+          const texto=key==="telefone" ? mostrarTelefone(ficha.telefone) : key==="cpf" ? mostrarCpf(ficha.cpf) : ["nascimento","batismo","emissao"].includes(key) ? mostrarData(ficha[key]) : key==="pai" ? "Pai: "+(ficha.pai??"") : key==="mae" ? "Mãe: "+(ficha.mae??"") : String(ficha[key]??"");
           await escrever(doc,page,fonts,key,c,texto,left+mm(c.x),top-mm(c.y),ficha.nome);
         }
         if(marcasDeCorte && !layout.individual) marcas(page,model,x,y);
