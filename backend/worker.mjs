@@ -382,7 +382,10 @@ async function fichasParaImpressao(request, db) {
   if (!saved.frente) throw new HttpError(422, "Salve a arte definitiva para preparar o lote.");
   if (data.revisao !== saved.revisao) throw new HttpError(409, "O modelo foi atualizado. Recarregue a página antes de exportar.");
   const prontas=[], pendentes=[];
+  const hoje = hojeSP();
   for (const ficha of records.results) {
+    // Sem data de emissão registrada, a carteirinha sai com a data da impressão.
+    ficha.emissao ||= hoje;
     const faltam = pendenciasDaFicha(saved.config.campos,ficha);
     if (faltam.length) pendentes.push({ nome:ficha.nome,protocolo:ficha.protocolo,faltam });
     else {

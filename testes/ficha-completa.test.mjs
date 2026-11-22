@@ -57,5 +57,8 @@ test("modelos salvos antes dos campos novos continuam válidos", () => {
   for (const k of ["batismo","pai","mae","nascimento","estado_civil","rg","cpf","emissao","naturalidade"]) delete antigo.campos[k];
   const completo = completarModelo(antigo);
   assert.deepEqual(Object.keys(completo.campos).sort(), Object.keys(CAMPOS_CARTAO).sort());
+  for (const k of ["batismo","pai","mae","nascimento","estado_civil","rg","cpf","emissao","naturalidade"]) assert.equal(completo.campos[k].lado, "oculto");
   assert.doesNotThrow(() => conferirModelo(completo, false));
+  assert.doesNotThrow(() => conferirModelo(modeloInicial(), true));
 });
+

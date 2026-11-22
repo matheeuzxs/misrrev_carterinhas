@@ -35,6 +35,17 @@ async function servico(t) {
   async function login(){const res=await call("/api/secretaria/entrar","POST",{senha:env.SENHA_SECRETARIA});assert.equal(res.status,200);cookie=res.headers.get("Set-Cookie").split(";")[0];}
   return {db,call,login};
 }
+
+// Modelo só de frente (como o padrão da primeira versão), usado para testar o lote e o PDF.
+function modeloSoFrente() {
+  const m=modeloInicial();
+  for(const c of Object.values(m.campos)) c.lado="oculto";
+  Object.assign(m.campos.nome,{lado:"frente",x:6,y:20,w:52,h:11,pt:13});
+  Object.assign(m.campos.matricula,{lado:"frente",x:6,y:36,w:26,h:6,pt:9});
+  Object.assign(m.campos.funcao,{lado:"frente",x:6,y:31,w:48,h:5,pt:9});
+  Object.assign(m.campos.foto,{lado:"frente",x:61,y:13,w:19,h:25});
+  return m;
+}
 function cadastrar(db,i,temMatricula=true) {
   const id=crypto.randomUUID(),mat=String(i).padStart(4,"0"),name="Ficha "+mat;
   db.prepare("INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,matricula,situacao,consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -62,7 +73,7 @@ test("apenas a equipe publica a arte, recupera todos os blocos e troca o modelo 
   const raw=await call(base+"/artes/"+art.chave);
   assert.equal(raw.headers.get("Content-Type"),"application/pdf");assert.match(raw.headers.get("Cache-Control"),/no-store/);
   assert.deepEqual(new Uint8Array(await raw.arrayBuffer()),bytes);
-  const cfg=modeloInicial();cfg.campos.foto.lado="oculto";
+  const cfg=modeloSoFrente();cfg.campos.foto.lado="oculto";
   const data={revisao:0,config:cfg,frente:{chave:art.chave,pagina:1},verso:{chave:art.chave,pagina:2}};
   const first=await (await call(base+"/modelo","PUT",data)).json();assert.equal(first.revisao,1);assert.equal(first.verso.pagina,2);
   assert.equal((await call(base+"/modelo","PUT",data)).status,409);
@@ -78,7 +89,7 @@ test("apenas a equipe publica a arte, recupera todos os blocos e troca o modelo 
   assert.equal((await call(base+"/modelo","PUT",{...data,config:cfg,revisao:2,verso:null})).status,422);
 });
 test("o PDF reúne mais de uma página da lista, alterna faces e espelha os lugares do verso",async()=>{
-  const model=modeloInicial();model.campos.foto.lado="oculto";model.campos.matricula.lado="verso";
+  const model=modeloSoFrente();model.campos.foto.lado="oculto";model.campos.matricula.lado="verso";
   const art=await lerFundo(await arte(),"application/pdf"),artes={frente:{art,pagina:1},verso:{art,pagina:2}};
   const fichas=Array.from({length:27},(_,i)=>({nome:"Membro "+(i+1),matricula:String(i+1).padStart(4,"0"),funcao:"Diácono"}));
   const output=await gerarPdf({model,artes,fichas});

@@ -5,30 +5,32 @@ const CAMPOS_CARTAO = { nome: "Nome", matricula: "Matrícula", funcao: "Função
 const LIMITE_ARTE = 6 * 1024 * 1024;
 
 function modeloInicial() {
-  const field = (lado, x, y, w, h, pt = 9) => ({ lado, x, y, w, h, pt, cor: "#14233b", fonte: "sans", negrito: false, alinhar: "esquerda" });
+  // Posições medidas na arte oficial da carteira de membro (frente e verso), 85,6 × 54 mm sem sangria.
+  const field = (lado, x, y, w, h, pt, extra = {}) => ({ lado, x, y, w, h, pt, cor: "#0f2347", fonte: "sans", negrito: false, alinhar: "esquerda", ...extra });
   return { largura: 85.6, altura: 54, sangria: 0, campos: {
-    nome: { ...field("frente", 6, 20, 52, 11, 13), negrito: true },
-    matricula: field("frente", 6, 36, 26, 6),
-    funcao: field("frente", 6, 31, 48, 5),
-    ano: field("oculto", 34, 36, 18, 6),
-    telefone: field("oculto", 6, 43, 42, 6),
-    foto: field("frente", 61, 13, 19, 25),
-    batismo: field("oculto", 6, 8, 30, 5, 8),
-    pai: field("oculto", 6, 14, 60, 5, 8),
-    mae: field("oculto", 6, 20, 60, 5, 8),
-    nascimento: field("oculto", 6, 26, 30, 5, 8),
-    estado_civil: field("oculto", 40, 26, 30, 5, 8),
-    rg: field("oculto", 6, 32, 30, 5, 8),
-    cpf: field("oculto", 40, 32, 30, 5, 8),
-    emissao: field("oculto", 6, 38, 30, 5, 8),
-    naturalidade: field("oculto", 6, 44, 60, 5, 8)
+    nome: field("frente", 3.86, 27.6, 54.21, 3.86, 10.5, { negrito: true }),
+    funcao: field("frente", 3.86, 36.37, 30.45, 3.29, 8.5),
+    batismo: field("frente", 36.99, 36.37, 21.08, 3.29, 8.5),
+    foto: field("frente", 64.32, 20.55, 15.41, 20.72, 9),
+    matricula: field("oculto", 3.86, 42, 26, 4, 8),
+    ano: field("oculto", 34, 42, 18, 4, 8),
+    telefone: field("oculto", 3.86, 46, 42, 4, 8),
+    pai: field("verso", 3.69, 9.81, 37.87, 1.81, 5),
+    mae: field("verso", 43.84, 9.81, 37.97, 1.81, 5),
+    nascimento: field("verso", 3.69, 14.78, 23.23, 1.95, 5.25),
+    estado_civil: field("verso", 29.71, 14.78, 23.6, 1.95, 5.25),
+    naturalidade: field("verso", 56.16, 14.78, 25.65, 1.95, 5.25),
+    rg: field("verso", 3.69, 19.88, 23.23, 1.95, 5.25),
+    cpf: field("verso", 29.71, 19.88, 23.6, 1.95, 5.25),
+    emissao: field("verso", 56.16, 19.88, 25.65, 1.95, 5.25)
   }};
 }
 
 // Modelos salvos antes dos campos novos recebem os campos que faltam, ocultos.
 function completarModelo(model) {
   const base = modeloInicial();
-  return { ...base, ...model, campos: { ...base.campos, ...(model?.campos || {}) } };
+  const faltantes = Object.fromEntries(Object.entries(base.campos).map(([k, c]) => [k, { ...c, lado: "oculto" }]));
+  return { ...base, ...model, campos: { ...faltantes, ...(model?.campos || {}) } };
 }
 
 function medida(value, min, max) {
@@ -566,7 +568,10 @@ async function fichasParaImpressao(request, db) {
   if (!saved.frente) throw new HttpError(422, "Salve a arte definitiva para preparar o lote.");
   if (data.revisao !== saved.revisao) throw new HttpError(409, "O modelo foi atualizado. Recarregue a página antes de exportar.");
   const prontas=[], pendentes=[];
+  const hoje = hojeSP();
   for (const ficha of records.results) {
+    // Sem data de emissão registrada, a carteirinha sai com a data da impressão.
+    ficha.emissao ||= hoje;
     const faltam = pendenciasDaFicha(saved.config.campos,ficha);
     if (faltam.length) pendentes.push({ nome:ficha.nome,protocolo:ficha.protocolo,faltam });
     else {
