@@ -1,4 +1,5 @@
 import { $, api, aviso } from "../comum.js";
+import { chaveBusca } from "../dados.js";
 import { modeloInicial, conferirModelo, LIMITE_ARTE } from "./modelo.js";
 import { lerFundo, dimensoesFundo, conferirProporcao, montarFolha, gerarPdf } from "./pdf.js";
 
@@ -9,7 +10,9 @@ const botoesLado=["frente","verso","verso2"];
 // Os campos marcados como "verso" aparecem nos dois versos; o fundo muda conforme o cargo.
 const ladoDosCampos=f=>f==="frente"?"frente":"verso";
 let salvo={ revisao:0 }, model=modeloInicial(), selecionado="nome", face="frente";
-let alterado=false, ocupado=false, lote=null, consultando=false, leitura=0, pintura=0, timer;
+// Carteirinhas escolhidas pelo nome; fichas novas no lote entram marcadas.
+const escolhidos=new Set(), conhecidos=new Set();
+let travado=false, alterado=false, ocupado=false, lote=null, consultando=false, leitura=0, pintura=0, timer;
 let pdfjs, arquivoGerado="";
 const numFmt=n=>Number(n.toFixed(2)).toLocaleString("pt-BR");
 const urlLogin="/secretaria/?abrir=carteirinhas";
@@ -82,8 +85,19 @@ function mudou() {
   aviso($("#config-msg"),"");aviso($("#batch-msg"),"");
   estado();resumo();agendarPrevia();
 }
+// Depois de salva, a arte fica fixa: só muda depois de tocar em "Trocar arte e campos".
+const EDITAVEIS=".uploads input,.uploads button,.dimensions input,.field-editor input,.field-editor select,#save-model";
+function aplicarTrava() {
+  for(const el of document.querySelectorAll(EDITAVEIS)) el.disabled=ocupado||travado;
+  $("#unlock-art").hidden=!travado;
+  $("#cancel-edit").hidden=travado||!salvo.revisao;
+  $("#lock-note").hidden=!travado;
+  $("#preview-note").hidden=travado;
+}
 function setBusy(value) {
-  ocupado=value;$("#editor-set").disabled=value;
+  ocupado=value;
+  for(const el of document.querySelectorAll(".side-switch button")) el.disabled=value||(el.id!=="view-frente"&&!refs[el.id.slice(5)]);
+  aplicarTrava();if(lote)desenharEscolha();
   for(const id of ["grupo","papel","virada","marks"]) $("#"+id).disabled=value;
   resumo();
 }
@@ -178,7 +192,7 @@ for(const prop of ["x","y","w","h","pt","cor","fonte","alinhar","negrito"]) {
   });
 }
 $("#proof-canvas").addEventListener("click",e=>{
-  if(ocupado || e.currentTarget.getAttribute("aria-busy")==="true")return;
+  if(ocupado || travado || e.currentTarget.getAttribute("aria-busy")==="true")return;
   const campo=model.campos[selecionado];
   if(campo.lado!==ladoDosCampos(face) || !Number.isFinite(campo.w) || !Number.isFinite(campo.h))return;
   const bounds=e.currentTarget.getBoundingClientRect();
@@ -210,14 +224,44 @@ async function salvar() {
       data[side]={chave:ref.chave,pagina:ref.pagina};
     }
     salvo=await privado(apiBase+"/modelo",{method:"PUT",json:data});
-    alterado=false;estado();aviso($("#config-msg"),"Arte definitiva salva para a equipe.",true);
+    alterado=false;travado=true;aplicarTrava();estado();aviso($("#config-msg"),"Arte definitiva salva e travada.",true);
     await atualizarLista();
   }catch(error){aviso($("#config-msg"),error.message);}
   finally{setBusy(false);}
 }
 $("#save-model").addEventListener("click",salvar);
+$("#unlock-art").addEventListener("click",()=>{travado=false;aplicarTrava();aviso($("#config-msg"),"Edição liberada. Salve para fixar a nova arte, ou cancele para manter a atual.",true);});
+$("#cancel-edit").addEventListener("click",async()=>{
+  if(ocupado)return;
+  setBusy(true);
+  try{
+    model=structuredClone(salvo.config);await carregarArquivos(salvo);
+    for(const k of ["largura","altura","sangria"])$("#"+k).value=model[k];
+    alterado=false;travado=true;leitura++;
+    atualizarArquivos();atualizarCampos();estado();mudarFace("frente");aviso($("#config-msg"),"");
+  }catch(error){aviso($("#config-msg"),error.message);}
+  finally{setBusy(false);}
+  await atualizarLista();
+});
 
+const selecionadas=()=>(lote?.prontas||[]).filter(m=>escolhidos.has(m.id));
+function desenharEscolha() {
+  const prontas=lote?.prontas||[], termo=chaveBusca($("#busca-nome").value);
+  $("#escolha").hidden=!prontas.length;
+  $("#lista-escolha").replaceChildren(...prontas.filter(m=>!termo||chaveBusca(m.nome).includes(termo)).map(m=>{
+    const li=document.createElement("li"), label=document.createElement("label"), box=document.createElement("input"), nome=document.createElement("span"), cargo=document.createElement("small");
+    box.type="checkbox";box.checked=escolhidos.has(m.id);box.disabled=ocupado;
+    box.addEventListener("change",()=>{if(box.checked)escolhidos.add(m.id);else escolhidos.delete(m.id);limparDownload();resumo();});
+    nome.textContent=m.nome;cargo.textContent=m.funcao;
+    label.append(box,nome,cargo);li.append(label);return li;
+  }));
+}
+$("#busca-nome").addEventListener("input",desenharEscolha);
+$("#marcar-todas").addEventListener("click",()=>{for(const m of lote?.prontas||[])escolhidos.add(m.id);limparDownload();desenharEscolha();resumo();});
+$("#desmarcar-todas").addEventListener("click",()=>{escolhidos.clear();limparDownload();desenharEscolha();resumo();});
 function atualizarPendencias() {
+  for(const m of lote?.prontas||[]) if(!conhecidos.has(m.id)){conhecidos.add(m.id);escolhidos.add(m.id);}
+  desenharEscolha();
   const arr=lote?.pendentes||[];
   $("#incomplete").hidden=!arr.length;
   $("#missing-title").textContent="Ver fichas pendentes ("+arr.length+")";
@@ -227,9 +271,9 @@ function atualizarPendencias() {
 }
 function resumo() {
   const papel=$("#papel").value, single=papel==="individual";
-  $("#flip-box").hidden=single||!salvo.verso;$("#marks-wrap").hidden=single;
+  $("#flip-box").hidden=single||!(salvo.verso||salvo.verso2);$("#marks-wrap").hidden=single;
   $("#refresh-batch").disabled=ocupado||consultando||alterado||!salvo.revisao;
-  let liberado=false,qty=lote?.prontas.length||0;
+  let liberado=false,qty=selecionadas().length;
   let info="",status="";
   if(alterado)status="Salve as alterações da arte para preparar o lote.";
   else if(!salvo.revisao)status="Salve a arte definitiva para conferir as fichas.";
@@ -237,9 +281,10 @@ function resumo() {
   else if(!lote)status="Atualize a lista de fichas.";
   else {
     const p=lote.pendentes.length;
-    status=qty+" "+(qty===1?"carteirinha pronta":"carteirinhas prontas")+" · "+p+" "+(p===1?"ficha pendente":"fichas pendentes");
+    const total=lote.prontas.length;
+    status=qty+" de "+total+" "+(total===1?"carteirinha pronta selecionada":"carteirinhas prontas selecionadas")+" · "+p+" "+(p===1?"ficha pendente":"fichas pendentes");
     try {
-      const l=montarFolha(model,papel), folhas=Math.ceil(qty/l.capacidade), paginas=folhas*(salvo.verso?2:1);
+      const l=montarFolha(model,papel), folhas=Math.ceil(qty/l.capacidade), paginas=folhas*(salvo.verso||salvo.verso2?2:1);
       info=single ? "Uma face por página, no tamanho de corte escolhido e com a sangria configurada." : l.capacidade+" carteirinhas por folha "+papel+".";
       if(qty) info+=" O lote terá "+paginas+(paginas===1?" página":" páginas")+" de PDF.";
       liberado=qty>0;
@@ -289,7 +334,8 @@ async function exportar(uma) {
     const fresh=await consultar(), mudouLista=assinatura(lote)!==assinatura(fresh);
     lote=fresh;atualizarPendencias();resumo();
     if(mudouLista)throw new Error("As fichas mudaram. Confira a nova contagem e exporte novamente.");
-    const fichas=uma?lote.prontas.slice(0,1):lote.prontas;
+    const fichas=uma?selecionadas().slice(0,1):selecionadas();
+    if(!fichas.length)throw new Error("Marque pelo menos um nome para imprimir.");
     const papel=uma?"individual":$("#papel").value;
     aviso($("#batch-msg"),"Preparando o PDF…",true);
     const bytes=await gerarPdf({
@@ -303,7 +349,7 @@ async function exportar(uma) {
     });
     const data=new Date().toISOString().slice(0,10);
     entregarPdf(bytes,(uma?"prova-carteirinha":"carteirinhas-"+papel)+"-MISRREV-"+data+".pdf");
-    aviso($("#batch-msg"),uma?"Prova da primeira ficha gerada.":"PDF gerado com "+fichas.length+(fichas.length===1?" carteirinha.":" carteirinhas."),true);
+    aviso($("#batch-msg"),uma?"Prova de "+fichas[0].nome+" gerada.":"PDF gerado com "+fichas.length+(fichas.length===1?" carteirinha.":" carteirinhas."),true);
   }catch(error){aviso($("#batch-msg"),error.message);}
   finally{setBusy(false);}
 }
@@ -315,10 +361,10 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!$("#stud
 
 async function inicio() {
   try{
-    salvo=await privado(apiBase+"/modelo");model=salvo.config;
+    salvo=await privado(apiBase+"/modelo");model=structuredClone(salvo.config);travado=salvo.revisao>0;
     await carregarArquivos(salvo);
     for(const k of ["largura","altura","sangria"])$("#"+k).value=model[k];
-    atualizarArquivos();atualizarCampos();estado();resumo();
+    atualizarArquivos();atualizarCampos();estado();resumo();aplicarTrava();
     $("#studio").hidden=false;$("#loading").hidden=true;
     agendarPrevia();if(salvo.revisao)await atualizarLista();
   }catch(error){encerrarTela(error.message);}

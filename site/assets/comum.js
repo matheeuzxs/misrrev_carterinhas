@@ -113,3 +113,28 @@ export function mascarar(input, formatar) {
   });
   input.addEventListener("focus", () => { input.dataset.anterior = input.value; });
 }
+
+// Reduz a foto para no máximo 1000 px e 480 KB em JPEG, como a API exige.
+export async function prepararFoto(file) {
+  if (file.size > 20 * 1024 * 1024) throw new Error("Escolha uma foto com até 20 MB.");
+  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Escolha uma foto em JPEG, PNG ou WebP.");
+  const src = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = src;
+    try { await img.decode(); } catch { throw new Error("Não foi possível ler esta imagem. Tente uma foto em JPEG."); }
+    const ratio = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1,Math.round(img.naturalWidth * ratio));
+    canvas.height = Math.max(1,Math.round(img.naturalHeight * ratio));
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    for (const quality of [.9,.78,.64,.5]) {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve,"image/jpeg",quality));
+      if (blob && blob.size <= 480 * 1024) return blob;
+    }
+    throw new Error("A foto ficou muito grande. Escolha uma imagem menor.");
+  } finally { URL.revokeObjectURL(src); }
+}

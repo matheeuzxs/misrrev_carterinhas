@@ -1,4 +1,4 @@
-import { $, api, aviso, linkArquivo, mascarar } from "./comum.js";
+import { $, api, aviso, linkArquivo, mascarar, prepararFoto } from "./comum.js";
 import { limparTexto, mostrarTelefone, mostrarCpf, mascaraCpf, formatarRg, digitosTelefone, camposPendentes, SITUACOES, validarDados } from "./dados.js";
 const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
 
@@ -141,8 +141,9 @@ async function loadList(number = 1) {
   }
 }
 function signedIn(focus = false) {
-  if (new URLSearchParams(window.location?.search || "").get("abrir") === "carteirinhas") {
-    location.replace("/secretaria/carteirinhas/");
+  const abrir = new URLSearchParams(window.location?.search || "").get("abrir");
+  if (abrir === "carteirinhas" || abrir === "fotos") {
+    location.replace("/secretaria/" + abrir + "/");
     return;
   }
   active = true;
@@ -300,29 +301,6 @@ recordForm.addEventListener("submit", async event => {
   finally { setBusy(false); }
 });
 
-async function preparePortrait(file) {
-  if (file.size > 20 * 1024 * 1024) throw new Error("Escolha uma foto com até 20 MB.");
-  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Escolha uma foto em JPEG, PNG ou WebP.");
-  const src = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = src;
-    try { await img.decode(); } catch { throw new Error("Não foi possível ler esta imagem. Tente uma foto em JPEG."); }
-    const ratio = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1,Math.round(img.naturalWidth * ratio));
-    canvas.height = Math.max(1,Math.round(img.naturalHeight * ratio));
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    for (const quality of [.9,.78,.64,.5]) {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve,"image/jpeg",quality));
-      if (blob && blob.size <= 480 * 1024) return blob;
-    }
-    throw new Error("A foto ficou muito grande. Escolha uma imagem menor.");
-  } finally { URL.revokeObjectURL(src); }
-}
 $("#photo-input").addEventListener("change", async () => {
   const input = $("#photo-input");
   const file = input.files?.[0];
@@ -330,7 +308,7 @@ $("#photo-input").addEventListener("change", async () => {
   setBusy(true);
   aviso($("#photo-msg"), "Preparando a foto…", true);
   try {
-    const blob = await preparePortrait(file);
+    const blob = await prepararFoto(file);
     current = await staff("/membros/" + current.id + "/foto", { method: "PUT", headers: { "Content-Type": "image/jpeg", "X-Revisao": String(current.revisao) }, body: blob });
     aviso($("#photo-msg"), "Foto salva.", true);
     await showPhoto(current);

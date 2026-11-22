@@ -68,3 +68,12 @@ test("modelos salvos antes dos campos novos continuam válidos", () => {
   assert.doesNotThrow(() => conferirModelo(modeloInicial(), true));
 });
 
+
+test("a lista de nomes mostra quem tem foto e exige login", async t => {
+  const { req, login } = servico(t);
+  assert.equal((await req("/api/cadastros", "POST", ficha({ nome: "Bruno Souza" }))).status, 201);
+  assert.equal((await req("/api/secretaria/nomes")).status, 401);
+  const { membros } = await (await req("/api/secretaria/nomes", "GET", undefined, await login())).json();
+  assert.deepEqual(membros.map(m => [m.nome, m.tem_foto]), [["Bruno Souza", 0]]);
+  assert.ok(membros[0].id && membros[0].revisao && membros[0].funcao);
+});

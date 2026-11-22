@@ -658,6 +658,12 @@ async function handle(request, env, url) {
     return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });
   }
   if (path === "/api/secretaria/lista") return listMembers(request, db);
+  if (path === "/api/secretaria/nomes") {
+    // Lista curta de todos os membros, para ligar fotos e escolher carteirinhas pelo nome.
+    requireMethod(request, "GET");
+    const rows = await db.prepare("SELECT id,nome,funcao,protocolo,revisao,foto IS NOT NULL AS tem_foto FROM membros ORDER BY nome_busca,ordem").all();
+    return json({ membros: rows.results });
+  }
   if (path === "/api/secretaria/exportar") return exportMembers(request, db);
   const match = /^\/api\/secretaria\/membros\/([^/]+)(\/foto)?$/.exec(path);
   if (!match || !UUID.test(match[1])) throw new HttpError(404, "Página não encontrada.");

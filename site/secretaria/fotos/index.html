@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101e39"><meta name="robots" content="noindex,nofollow">
+<title>Fotos das carteirinhas · MISRREV</title><link rel="icon" href="/assets/simbolo-misrrev.png"><link rel="stylesheet" href="/assets/base.css"><link rel="stylesheet" href="/assets/secretaria.css"><link rel="stylesheet" href="/assets/impressao/oficina.css"><script type="module" src="/assets/fotos.js"></script></head>
+<body class="admin"><a class="skip" href="#conteudo">Ir para as fotos</a>
+<header class="site-header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Missão Resgate Restaurando Vidas, início"><img src="/assets/simbolo-misrrev.png" alt="" width="46" height="40"><span><strong>Missão Resgate</strong><small>Restaurando Vidas</small></span></a><nav class="main-nav"><a class="back-home" href="/secretaria/"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-left"></use></svg><span>Lista de membros</span></a></nav></div></header>
+<main class="shell" id="conteudo">
+  <div class="dash-heading"><div><div class="eyebrow dash-eyebrow">Secretaria</div><h1>Fotos das carteirinhas</h1><p>Envie várias fotos de uma vez e diga de quem é cada uma, pelo nome.</p></div><div class="dash-buttons"><a class="btn secondary" href="/secretaria/carteirinhas/"><svg class="icon" aria-hidden="true"><use href="/assets/icones.svg#card"></use></svg>Carteirinhas para impressão</a></div></div>
+  <noscript><p class="notice error">Ative o JavaScript para enviar as fotos.</p></noscript>
+  <p class="notice" role="status" id="loading">Abrindo a secretaria…</p>
+  <div id="fotos-app" hidden>
+    <section class="panel studio-panel" aria-labelledby="tit-enviar"><div class="studio-heading"><h2 id="tit-enviar">Enviar fotos</h2><span class="model-state" id="sem-foto-resumo"></span></div>
+      <p class="muted">Dica: salve cada foto com o nome da pessoa (ex.: <b>Maria Aparecida.jpg</b>) e o site já liga a foto ao cadastro sozinho. Se não reconhecer, escolha o nome na lista.</p>
+      <div class="save-line fotos-topo"><label class="btn primary file-label" for="fotos-input"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg><span>Escolher fotos</span><input id="fotos-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple></label><button id="salvar-fotos" type="button" class="btn secondary" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#check"></use></svg>Salvar fotos</button></div>
+      <p id="fotos-msg" role="status" class="notice" hidden></p>
+      <datalist id="nomes-membros"></datalist>
+      <ul class="fotos-lista" id="fotos-lista"></ul>
+    </section>
+    <section class="panel studio-panel" aria-labelledby="tit-sem-foto"><div class="studio-heading"><h2 id="tit-sem-foto">Quem ainda está sem foto</h2></div>
+      <p class="muted" id="sem-foto-vazio" hidden>Todos os membros cadastrados já têm foto.</p>
+      <ul class="sem-foto" id="sem-foto"></ul>
+    </section>
+  </div>
+</main><footer class="site-footer"><div class="shell footer-inner"><div class="footer-name">Missão Resgate Restaurando Vidas</div><span>Secretaria de membros</span></div></footer></body></html>
