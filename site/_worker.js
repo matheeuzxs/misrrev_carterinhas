@@ -173,8 +173,9 @@ function validarDados(data) {
   if (pai && !textoValido(pai, 100)) errors.pai = "Confira o nome do pai, com até 100 caracteres.";
   if (mae && !textoValido(mae, 100)) errors.mae = "Confira o nome da mãe, com até 100 caracteres.";
   if (estado_civil && !ESTADOS_CIVIS.includes(estado_civil)) errors.estado_civil = "Escolha o estado civil na lista.";
-  if (rg && !/^[0-9A-Z][0-9A-Z.\-\/ ]{3,19}$/.test(rg)) errors.rg = "Confira o RG, com até 20 caracteres.";
-  if (cpf && !cpfValido(cpf)) errors.cpf = "Este CPF não é válido. Confira os 11 números.";
+  // RG e CPF são obrigatórios: sem eles o cadastro não é enviado.
+  if (!/^[0-9A-Z][0-9A-Z.\-\/ ]{3,19}$/.test(rg)) errors.rg = rg ? "Confira o RG, com até 20 caracteres." : "Informe o RG.";
+  if (!cpfValido(cpf)) errors.cpf = cpf ? "Este CPF não é válido. Confira os 11 números." : "Informe o CPF.";
   if (naturalidade && !textoValido(naturalidade, 60)) errors.naturalidade = "Confira a cidade e o estado, com até 60 caracteres.";
   return { fields: {
     nome, telefone, ano: ano ? Number(ano) : null, funcao, nascimento: nascimento || null,

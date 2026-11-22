@@ -34,9 +34,10 @@ test("grava a ficha completa, recusa dados inválidos e exporta todas as colunas
     { batismo: "1980-01-01" }, { estado_civil: "Noivo" }]) {
     assert.equal((await req("/api/cadastros", "POST", ficha(c))).status, 422, JSON.stringify(c));
   }
-  const vazia = ficha({ nascimento: "", batismo: "", pai: "", mae: "", estado_civil: "", rg: "", cpf: "", naturalidade: "" });
+  for (const k of ["rg","cpf"]) assert.equal((await req("/api/cadastros", "POST", ficha({ [k]: "" }))).status, 422, "obrigatório: " + k);
+  const vazia = ficha({ nascimento: "", batismo: "", pai: "", mae: "", estado_civil: "", naturalidade: "", cpf: "111.444.777-35" });
   assert.equal((await req("/api/cadastros", "POST", vazia)).status, 201, "campos em branco são aceitos como pendência");
-  assert.equal((await req("/api/cadastros", "POST", ficha({ pai: "Não consta", cpf: "111.444.777-35" }))).status, 201);
+  assert.equal((await req("/api/cadastros", "POST", ficha({ pai: "Não consta", cpf: "390.533.447-05" }))).status, 201);
   assert.equal((await req("/api/cadastros", "POST", ficha())).status, 201);
   const c = await login();
   const lista = await (await req("/api/secretaria/lista", "POST", { busca: "52998224725" }, c)).json();
