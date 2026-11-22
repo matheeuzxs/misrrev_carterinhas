@@ -77,7 +77,7 @@ function mudarFace(side) {
   agendarPrevia();
 }
 function estado() {
-  $("#model-state").textContent=alterado ? "Alterações por salvar":salvo.revisao ? "Arte salva · versão "+salvo.revisao:"Aguardando arte";
+  $("#model-state").textContent=alterado ? "Alterações por salvar":salvo.revisao ? "Arte instalada":"Aguardando arte";
 }
 function mudou() {
   limparDownload();
@@ -92,7 +92,23 @@ function aplicarTrava() {
   $("#unlock-art").hidden=!travado;
   $("#cancel-edit").hidden=travado||!salvo.revisao;
   $("#lock-note").hidden=!travado;
-  $("#preview-note").hidden=travado;
+  $("#editor-set").hidden=travado;
+  $("#arte-instrucoes").hidden=travado;
+  $("#arte-resumo").hidden=!travado;
+  if(travado) miniaturas();
+}
+const urlsMini={};
+function miniaturas() {
+  for(const side of botoesLado) {
+    const art=refs[side]?.art, fig=$("#fig-"+side);
+    const imagem=art && art.tipo!=="application/pdf";
+    fig.hidden=!imagem;
+    if(!imagem)continue;
+    if(urlsMini[side]?.art!==art){ if(urlsMini[side])URL.revokeObjectURL(urlsMini[side].url); urlsMini[side]={art,url:URL.createObjectURL(new Blob([art.bytes],{type:art.tipo}))}; }
+    $("#mini-"+side).src=urlsMini[side].url;
+  }
+  $("#fig-verso2").classList.toggle("pendente",!refs.verso2);
+  if(!refs.verso2) $("#fig-verso2").hidden=false;
 }
 function setBusy(value) {
   ocupado=value;
@@ -230,7 +246,7 @@ async function salvar() {
   finally{setBusy(false);}
 }
 $("#save-model").addEventListener("click",salvar);
-$("#unlock-art").addEventListener("click",()=>{travado=false;aplicarTrava();aviso($("#config-msg"),"Edição liberada. Salve para fixar a nova arte, ou cancele para manter a atual.",true);});
+$("#unlock-art").addEventListener("click",()=>{travado=false;aplicarTrava();agendarPrevia();aviso($("#config-msg"),"Ajustes liberados. Salve para fixar a nova arte, ou cancele para manter a atual.",true);});
 $("#cancel-edit").addEventListener("click",async()=>{
   if(ocupado)return;
   setBusy(true);

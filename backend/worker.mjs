@@ -314,6 +314,32 @@ function base64DeBloco(bytes) {
   return btoa(chars);
 }
 
+// Artes oficiais que vêm instaladas com o site; entram no banco na primeira abertura da tela de carteirinhas.
+const ARTES_PADRAO = { frente: "/assets/impressao/arte/frente.png", verso: "/assets/impressao/arte/verso-ministerial.png" };
+function comandosDaArte(db, chave, tipo, bytes, now) {
+  const statements = [db.prepare("INSERT INTO artes_carteirinha(chave,tipo,tamanho,criada_em) VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET criada_em=excluded.criada_em").bind(chave,tipo,bytes.length,now)];
+  for (let i=0;i<bytes.length;i+=TAMANHO_BLOCO) {
+    statements.push(db.prepare("INSERT OR IGNORE INTO partes_arte_carteirinha(arte,parte,conteudo) VALUES(?,?,?)").bind(chave,i/TAMANHO_BLOCO,base64DeBloco(bytes.subarray(i,i+TAMANHO_BLOCO))));
+  }
+  return statements;
+}
+async function instalarArtePadrao(db, env, url) {
+  if (!env?.ASSETS) return;
+  const now = Math.floor(Date.now()/1000), chaves = {}, statements = [];
+  for (const [lado, caminho] of Object.entries(ARTES_PADRAO)) {
+    const res = await env.ASSETS.fetch(new Request(new URL(caminho, url)));
+    if (!res.ok) return;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const tipo = tipoDaArte(bytes);
+    if (!tipo) return;
+    chaves[lado] = hex(await crypto.subtle.digest("SHA-256", bytes));
+    statements.push(...comandosDaArte(db, chaves[lado], tipo, bytes, now));
+  }
+  statements.push(db.prepare("UPDATE modelo_carteirinha SET revisao=1,configuracao=?,frente=?,pagina_frente=1,verso=?,pagina_verso=1 WHERE id=1 AND revisao=0")
+    .bind(JSON.stringify(modeloInicial()), chaves.frente, chaves.verso));
+  await db.batch(statements);
+}
+
 async function receberArte(request, db) {
   requireMethod(request, "POST");
   const bytes = await readBytes(request, LIMITE_ARTE);
@@ -322,12 +348,7 @@ async function receberArte(request, db) {
   const chave = hex(await crypto.subtle.digest("SHA-256", bytes));
   const now = Math.floor(Date.now()/1000);
   const cleanup = db.prepare("DELETE FROM artes_carteirinha WHERE criada_em < ? AND NOT EXISTS (SELECT 1 FROM modelo_carteirinha WHERE frente=artes_carteirinha.chave OR verso=artes_carteirinha.chave OR verso2=artes_carteirinha.chave)").bind(now-86400);
-  const statements = [cleanup, db.prepare("INSERT INTO artes_carteirinha(chave,tipo,tamanho,criada_em) VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET criada_em=excluded.criada_em").bind(chave,tipo,bytes.length,now)];
-  for (let i=0;i<bytes.length;i+=TAMANHO_BLOCO) {
-    const text = base64DeBloco(bytes.subarray(i,i+TAMANHO_BLOCO));
-    statements.push(db.prepare("INSERT OR IGNORE INTO partes_arte_carteirinha(arte,parte,conteudo) VALUES(?,?,?)").bind(chave,i/TAMANHO_BLOCO,text));
-  }
-  await db.batch(statements);
+  await db.batch([cleanup, ...comandosDaArte(db, chave, tipo, bytes, now)]);
   return json({ chave, tipo, tamanho:bytes.length },201);
 }
 
@@ -356,8 +377,12 @@ async function confirmarLado(db, side) {
   if (!meta || (meta.tipo !== "application/pdf" && side.pagina !== 1)) throw new HttpError(422, "A arte selecionada não está disponível para este lado.");
 }
 
-async function modeloDaSecretaria(request, db) {
-  if (request.method === "GET") return json(modeloDaLinha(await db.prepare(SELECT_MODELO).first()));
+async function modeloDaSecretaria(request, db, env) {
+  if (request.method === "GET") {
+    let row = await db.prepare(SELECT_MODELO).first();
+    if (!row.revisao) { await instalarArtePadrao(db, env, request.url); row = await db.prepare(SELECT_MODELO).first(); }
+    return json(modeloDaLinha(row));
+  }
   requireMethod(request, "PUT");
   const data = await readJson(request);
   if (!Number.isSafeInteger(data.revisao) || data.revisao<0) throw new HttpError(422, "Reabra o modelo antes de salvar.");
@@ -440,7 +465,7 @@ async function handle(request, env, url) {
   if (path === "/api/secretaria/entrar") return signIn(request, db, secret, key);
   if (!path.startsWith("/api/secretaria/")) throw new HttpError(404, "Página não encontrada.");
   const session = await authorize(request, db, key);
-  if (path === "/api/secretaria/carteirinhas/modelo") return modeloDaSecretaria(request,db);
+  if (path === "/api/secretaria/carteirinhas/modelo") return modeloDaSecretaria(request,db,env);
   if (path === "/api/secretaria/carteirinhas/artes") return receberArte(request,db);
   if (path.startsWith("/api/secretaria/carteirinhas/artes/")) return lerArte(request,db,path.slice("/api/secretaria/carteirinhas/artes/".length));
   if (path === "/api/secretaria/carteirinhas/lote") return fichasParaImpressao(request,db);

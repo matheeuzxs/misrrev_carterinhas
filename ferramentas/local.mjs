@@ -30,7 +30,7 @@ async function localAssets(request) {
   if (!["GET","HEAD"].includes(request.method)) return new Response(null,{ status:405 });
   let pathname;
   try { pathname = decodeURIComponent(new URL(request.url).pathname); } catch { return new Response(null,{ status:400 }); }
-  if (["/secretaria","/secretaria/carteirinhas"].includes(pathname)) return Response.redirect(new URL(pathname + "/", request.url),308);
+  if (["/secretaria","/secretaria/carteirinhas","/secretaria/fotos"].includes(pathname)) return Response.redirect(new URL(pathname + "/", request.url),308);
   const clean = pathname.endsWith("/") ? pathname + "index.html" : pathname;
   const path = resolve(root, "." + clean);
   const blocked = !(path.startsWith(resolve(root) + sep)) || clean.split("/").some(part => part.startsWith("_") || part.startsWith("."));
