@@ -153,3 +153,5 @@ button:disabled{cursor:wait;opacity:.65}
 
 
 @media(max-width:600px){.card-stage.is-open{margin-bottom:31px}.card-stage.is-open .card-caption{display:flex;bottom:-25px}}
+.field-group{grid-column:1/-1;margin:8px 0 -6px;font:600 12px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:#6b7a8c}
+.field input[type=date]{min-height:46px}

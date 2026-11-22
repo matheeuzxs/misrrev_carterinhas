@@ -4,7 +4,7 @@ import { lerFundo, dimensoesFundo, conferirProporcao, montarFolha, gerarPdf } fr
 
 const apiBase="/api/secretaria/carteirinhas";
 const refs={ frente:null,verso:null };
-const exemplo={ nome:"Ana Oliveira",matricula:"0001",funcao:"Membro",ano:2024,telefone:"11999990000" };
+const exemplo={ nome:"Ana Oliveira",matricula:"0001",funcao:"Membro",ano:2024,telefone:"11999990000",nascimento:"1990-05-12",batismo:"2015-08-30",pai:"José Oliveira",mae:"Maria Oliveira",estado_civil:"Casado(a)",rg:"12.345.678-9",cpf:"52998224725",emissao:"2026-11-22",naturalidade:"Guarulhos - SP" };
 const botoesLado=["frente","verso"];
 let salvo={ revisao:0 }, model=modeloInicial(), selecionado="nome", face="frente";
 let alterado=false, ocupado=false, lote=null, consultando=false, leitura=0, pintura=0, timer;

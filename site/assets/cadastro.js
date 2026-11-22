@@ -1,5 +1,5 @@
 import { $, api, aviso, definirErro } from "./comum.js";
-import { limparTexto, mostrarTelefone, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
+import { limparTexto, mostrarTelefone, mostrarData, mostrarCpf, hojeSP, validarDados, VERSAO_CONSENTIMENTO, TEXTO_CONSENTIMENTO } from "./dados.js";
 
 const form = $("#member-form");
 const selects = $("#funcao");
@@ -11,19 +11,21 @@ const submit = $("#send");
 const firstStep = $("#step-label-1");
 const secondStep = $("#step-label-2");
 const previewButton = $("#preview-toggle");
-const errorEls = { nome: $("#nome"), telefone: $("#telefone"), ano: $("#ano"), funcao: $("#outra") };
+const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
+const errorEls = { nome: $("#nome"), telefone: $("#telefone"), funcao: $("#outra"), ...Object.fromEntries(EXTRAS.map(k => [k, $("#" + k)])) };
 let values;
 let requestId = null;
 let sending = false;
 
 $(".consent span").textContent = TEXTO_CONSENTIMENTO;
+for (const id of ["nascimento","batismo"]) $("#" + id).max = hojeSP();
 
 function getData() {
   return {
     nome: $("#nome").value,
     telefone: $("#telefone").value,
-    ano: $("#ano").value,
-    funcao: selects.value === "Outro" ? $("#outra").value : selects.value
+    funcao: selects.value === "Outro" ? $("#outra").value : selects.value,
+    ...Object.fromEntries(EXTRAS.map(k => [k, $("#" + k).value]))
   };
 }
 
@@ -32,7 +34,7 @@ function preview() {
   const name = limparTexto(data.nome);
   $("#card-name").textContent = name || "Seu nome aqui";
   $("#card-name").classList.toggle("long-name", name.length > 21);
-  $("#card-year").textContent = /^\d{4}$/.test(data.ano) ? data.ano : "—";
+  $("#card-year").textContent = mostrarData(data.nascimento) || "—";
   $("#card-role").textContent = data.funcao || "Membro";
 }
 
@@ -69,7 +71,10 @@ function buildReview(data) {
   const dl = $("#review-data");
   const rows = [
     ["Nome completo", data.nome], ["Telefone com DDD", mostrarTelefone(data.telefone)],
-    ["Membro desde", data.ano || "A confirmar com a secretaria"], ["Função na igreja", data.funcao]
+    ["Função na igreja", data.funcao], ["Data de nascimento", mostrarData(data.nascimento)],
+    ["Data de batismo", mostrarData(data.batismo) || "Não informada"], ["Estado civil", data.estado_civil || "Não informado"],
+    ["Natural de", data.naturalidade || "Não informado"], ["Pai", data.pai || "Não informado"], ["Mãe", data.mae || "Não informado"],
+    ["RG", data.rg || "Não informado"], ["CPF", data.cpf ? mostrarCpf(data.cpf) : "Não informado"]
   ];
   dl.replaceChildren(...rows.map(([label, value]) => {
     const row = document.createElement("div");
@@ -98,6 +103,9 @@ form.addEventListener("input", event => {
 });
 $("#telefone").addEventListener("blur", event => {
   event.target.value = mostrarTelefone(event.target.value);
+});
+$("#cpf").addEventListener("blur", event => {
+  event.target.value = mostrarCpf(event.target.value);
 });
 previewButton.addEventListener("click", () => {
   const open = $("#visual-card").classList.toggle("is-open");

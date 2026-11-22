@@ -1,4 +1,6 @@
-export const CAMPOS_CARTAO = { nome: "Nome", matricula: "Matrícula", funcao: "Função", ano: "Membro desde", telefone:"Telefone", foto: "Foto" };
+export const CAMPOS_CARTAO = { nome: "Nome", matricula: "Matrícula", funcao: "Função", ano: "Membro desde", telefone:"Telefone", foto: "Foto",
+  batismo: "Data de batismo", pai: "Pai", mae: "Mãe", nascimento: "Data de nascimento", estado_civil: "Estado civil",
+  rg: "RG", cpf: "CPF", emissao: "Data de emissão", naturalidade: "Natural de" };
 export const LIMITE_ARTE = 6 * 1024 * 1024;
 
 export function modeloInicial() {
@@ -9,8 +11,23 @@ export function modeloInicial() {
     funcao: field("frente", 6, 31, 48, 5),
     ano: field("oculto", 34, 36, 18, 6),
     telefone: field("oculto", 6, 43, 42, 6),
-    foto: field("frente", 61, 13, 19, 25)
+    foto: field("frente", 61, 13, 19, 25),
+    batismo: field("oculto", 6, 8, 30, 5, 8),
+    pai: field("oculto", 6, 14, 60, 5, 8),
+    mae: field("oculto", 6, 20, 60, 5, 8),
+    nascimento: field("oculto", 6, 26, 30, 5, 8),
+    estado_civil: field("oculto", 40, 26, 30, 5, 8),
+    rg: field("oculto", 6, 32, 30, 5, 8),
+    cpf: field("oculto", 40, 32, 30, 5, 8),
+    emissao: field("oculto", 6, 38, 30, 5, 8),
+    naturalidade: field("oculto", 6, 44, 60, 5, 8)
   }};
+}
+
+// Modelos salvos antes dos campos novos recebem os campos que faltam, ocultos.
+export function completarModelo(model) {
+  const base = modeloInicial();
+  return { ...base, ...model, campos: { ...base.campos, ...(model?.campos || {}) } };
 }
 
 function medida(value, min, max) {

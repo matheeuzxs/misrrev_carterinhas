@@ -1,5 +1,7 @@
 // Gerado por npm run preparar a partir de backend/worker.mjs e dos módulos compartilhados.
-const CAMPOS_CARTAO = { nome: "Nome", matricula: "Matrícula", funcao: "Função", ano: "Membro desde", telefone:"Telefone", foto: "Foto" };
+const CAMPOS_CARTAO = { nome: "Nome", matricula: "Matrícula", funcao: "Função", ano: "Membro desde", telefone:"Telefone", foto: "Foto",
+  batismo: "Data de batismo", pai: "Pai", mae: "Mãe", nascimento: "Data de nascimento", estado_civil: "Estado civil",
+  rg: "RG", cpf: "CPF", emissao: "Data de emissão", naturalidade: "Natural de" };
 const LIMITE_ARTE = 6 * 1024 * 1024;
 
 function modeloInicial() {
@@ -10,8 +12,23 @@ function modeloInicial() {
     funcao: field("frente", 6, 31, 48, 5),
     ano: field("oculto", 34, 36, 18, 6),
     telefone: field("oculto", 6, 43, 42, 6),
-    foto: field("frente", 61, 13, 19, 25)
+    foto: field("frente", 61, 13, 19, 25),
+    batismo: field("oculto", 6, 8, 30, 5, 8),
+    pai: field("oculto", 6, 14, 60, 5, 8),
+    mae: field("oculto", 6, 20, 60, 5, 8),
+    nascimento: field("oculto", 6, 26, 30, 5, 8),
+    estado_civil: field("oculto", 40, 26, 30, 5, 8),
+    rg: field("oculto", 6, 32, 30, 5, 8),
+    cpf: field("oculto", 40, 32, 30, 5, 8),
+    emissao: field("oculto", 6, 38, 30, 5, 8),
+    naturalidade: field("oculto", 6, 44, 60, 5, 8)
   }};
+}
+
+// Modelos salvos antes dos campos novos recebem os campos que faltam, ocultos.
+function completarModelo(model) {
+  const base = modeloInicial();
+  return { ...base, ...model, campos: { ...base.campos, ...(model?.campos || {}) } };
 }
 
 function medida(value, min, max) {
@@ -48,8 +65,9 @@ function pendenciasDaFicha(campos, ficha) {
 
 const FUNCOES = ["Membro","Cooperador(a)","Diácono(a)","Diaconisa","Presbítero(a)","Evangelista","Missionário(a)","Pastor(a)","Outro"];
 const SITUACOES = { recebido: "Recebido", conferido: "Conferido", emitido: "Emitido" };
-const VERSAO_CONSENTIMENTO = "carteirinha-v1";
-const TEXTO_CONSENTIMENTO = "Sou o membro ou seu responsável e autorizo a Missão Resgate Restaurando Vidas a usar estes dados e a foto tirada na igreja para preparar a carteirinha. A secretaria pode entrar em contato sobre este cadastro.";
+const ESTADOS_CIVIS = ["Solteiro(a)","Casado(a)","Divorciado(a)","Viúvo(a)","União estável"];
+const VERSAO_CONSENTIMENTO = "carteirinha-v2";
+const TEXTO_CONSENTIMENTO = "Sou o membro ou seu responsável e autorizo a Missão Resgate Restaurando Vidas a usar estes dados, incluindo RG e CPF, e a foto tirada na igreja para preparar a carteirinha. A secretaria pode entrar em contato sobre este cadastro.";
 
 function limparTexto(value) {
   return typeof value === "string" ? value.normalize("NFC").replace(/\s+/gu, " ").trim() : "";
@@ -78,25 +96,82 @@ function anoAtual() {
   return Number(new Intl.DateTimeFormat("pt-BR", { year: "numeric", timeZone: "America/Sao_Paulo" }).format(new Date()));
 }
 
+function hojeSP() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+// Datas trafegam como AAAA-MM-DD, o formato do campo de data do navegador.
+function dataValida(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+function mostrarData(value) {
+  return dataValida(value) ? value.split("-").reverse().join("/") : "";
+}
+
+function digitosCpf(value) {
+  return typeof value === "string" ? value.replace(/\D/g, "") : "";
+}
+
+function cpfValido(value) {
+  const d = digitosCpf(value);
+  if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false;
+  for (const n of [9, 10]) {
+    let soma = 0;
+    for (let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i);
+    if ((soma * 10) % 11 % 10 !== Number(d[n])) return false;
+  }
+  return true;
+}
+
+function mostrarCpf(value) {
+  const d = digitosCpf(value);
+  return d.length === 11 ? d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9) : (value || "");
+}
+
+function textoValido(value, max) {
+  return value.length >= 2 && value.length <= max && /\p{L}/u.test(value) && !/[\p{Cc}\p{Cf}]/u.test(value);
+}
+
 function validarDados(data) {
   const nome = limparTexto(data.nome);
   const telefone = digitosTelefone(data.telefone);
   const ano = data.ano == null ? "" : String(data.ano).trim();
   const funcao = limparTexto(data.funcao);
+  const nascimento = limparTexto(data.nascimento);
+  const batismo = limparTexto(data.batismo);
+  const pai = limparTexto(data.pai);
+  const mae = limparTexto(data.mae);
+  const estado_civil = limparTexto(data.estado_civil);
+  const rg = limparTexto(data.rg).toUpperCase();
+  const cpf = digitosCpf(data.cpf);
+  const naturalidade = limparTexto(data.naturalidade);
+  const hoje = hojeSP();
   const errors = {};
-  if (nome.length < 2 || nome.length > 100 || !/\p{L}/u.test(nome) || /[\p{Cc}\p{Cf}]/u.test(nome)) {
-    errors.nome = "Informe seu nome completo, com até 100 caracteres.";
-  }
+  if (!textoValido(nome, 100)) errors.nome = "Informe seu nome completo, com até 100 caracteres.";
   if (!/^[1-9][0-9]\d{8,9}$/.test(telefone)) errors.telefone = "Use um telefone brasileiro com DDD e 10 ou 11 dígitos.";
   if (ano && (!/^\d{4}$/.test(ano) || Number(ano) < 1900 || Number(ano) > anoAtual())) {
     errors.ano = "Informe um ano entre 1900 e " + anoAtual() + " ou deixe em branco.";
   }
-  if (funcao.length < 2 || funcao.length > 45 || !/\p{L}/u.test(funcao) || /[\p{Cc}\p{Cf}]/u.test(funcao)) {
-    errors.funcao = "Informe uma função de até 45 caracteres.";
-  }
-  return { fields: { nome, telefone, ano: ano ? Number(ano) : null, funcao }, errors };
+  if (!textoValido(funcao, 45)) errors.funcao = "Informe uma função de até 45 caracteres.";
+  if (!dataValida(nascimento) || nascimento < "1900-01-01" || nascimento > hoje) errors.nascimento = "Informe sua data de nascimento.";
+  if (batismo && (!dataValida(batismo) || batismo < "1900-01-01" || batismo > hoje)) errors.batismo = "Confira a data de batismo ou deixe em branco.";
+  else if (batismo && !errors.nascimento && batismo < nascimento) errors.batismo = "O batismo não pode ser antes do nascimento.";
+  if (pai && !textoValido(pai, 100)) errors.pai = "Confira o nome do pai, com até 100 caracteres.";
+  if (mae && !textoValido(mae, 100)) errors.mae = "Confira o nome da mãe, com até 100 caracteres.";
+  if (estado_civil && !ESTADOS_CIVIS.includes(estado_civil)) errors.estado_civil = "Escolha o estado civil na lista.";
+  if (rg && !/^[0-9A-Z][0-9A-Z.\-\/ ]{3,19}$/.test(rg)) errors.rg = "Confira o RG, com até 20 caracteres.";
+  if (cpf && !cpfValido(cpf)) errors.cpf = "Este CPF não é válido. Confira os 11 números.";
+  if (naturalidade && !textoValido(naturalidade, 60)) errors.naturalidade = "Informe a cidade e o estado, com até 60 caracteres.";
+  return { fields: {
+    nome, telefone, ano: ano ? Number(ano) : null, funcao, nascimento,
+    batismo: batismo || null, pai: pai || null, mae: mae || null, estado_civil: estado_civil || null,
+    rg: rg || null, cpf: cpf || null, naturalidade: naturalidade || null
+  }, errors };
 }
-
 
 
 const encoder = new TextEncoder();
@@ -105,7 +180,8 @@ const SESSION_SECONDS = 4 * 60 * 60;
 const SESSION_LONG_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_LIMIT = 480 * 1024;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
+const EXTRA_COLUMNS = ["nascimento","batismo","pai","mae","estado_civil","rg","cpf","naturalidade"];
+const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, " + EXTRA_COLUMNS.join(", ") + ", emissao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
 const SAFETY_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   "X-Content-Type-Options": "nosniff",
@@ -226,8 +302,8 @@ async function submit(request, db, key) {
   const code = "MR-" + id.replace(/-/g, "").slice(-12).toUpperCase().match(/.{4}/g).join("-");
   const time = new Date().toISOString();
   const inserted = await db.prepare(
-    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
-  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, VERSAO_CONSENTIMENTO, time, time).first();
+    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?," + EXTRA_COLUMNS.map(() => "?").join(",") + ",?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
+  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), VERSAO_CONSENTIMENTO, time, time).first();
   if (inserted) return json({ protocolo: inserted.protocolo }, 201);
   const existing = await db.prepare("SELECT protocolo, resumo_envio FROM membros WHERE solicitacao=?").bind(data.solicitacao).first();
   if (existing?.resumo_envio !== digest) throw new HttpError(409, "Este envio já foi registrado com outros dados. Para uma correção, fale com a Julia.");
@@ -277,9 +353,9 @@ function filterFor(data) {
     args.push(status);
   }
   if (term) {
-    clauses.push("(instr(nome_busca,?)>0 OR instr(lower(protocolo),?)>0 OR instr(COALESCE(matricula,''),?)>0 OR instr(telefone,?)>0)");
+    clauses.push("(instr(nome_busca,?)>0 OR instr(lower(protocolo),?)>0 OR instr(COALESCE(matricula,''),?)>0 OR instr(telefone,?)>0 OR instr(COALESCE(cpf,''),?)>0)");
     const tel = /^[0-9+()\s-]+$/.test(term) ? (term.replace(/\D/g,"") || term) : term;
-    args.push(term, term, term, tel);
+    args.push(term, term, term, tel, tel);
   }
   return { sql: clauses.length ? " WHERE " + clauses.join(" AND ") : "", args };
 }
@@ -307,13 +383,13 @@ function csvCell(value) {
 async function exportMembers(request, db) {
   requireMethod(request, "POST");
   const f = filterFor(await readJson(request));
-  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
-  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Matrícula","Situação","Foto anexada","Recebido em"];
+  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",emissao,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
+  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Data de nascimento","Data de batismo","Pai","Mãe","Estado civil","RG","CPF","Natural de","Data de emissão","Matrícula","Situação","Foto anexada","Recebido em"];
   const rows = [header.map(csvCell).join(";")];
   const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
   for (const m of data.results) {
     const time = dateFormat.format(new Date(m.recebido_em));
-    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
+    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,mostrarData(m.nascimento),mostrarData(m.batismo),m.pai,m.mae,m.estado_civil,m.rg,mostrarCpf(m.cpf),m.naturalidade,mostrarData(m.emissao),m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
   }
   return new Response("\uFEFF" + rows.join("\r\n") + "\r\n", { headers: { ...SAFETY_HEADERS, "Content-Type": "text/csv; charset=UTF-8", "Content-Disposition": 'attachment; filename="cadastros-misrrev.csv"' } });
 }
@@ -343,10 +419,13 @@ async function updateMember(request, db, id) {
   if (matricula && (!/^\d{1,12}$/.test(matricula) || !Number(matricula))) throw new HttpError(422, "Use de 1 a 12 dígitos para a matrícula.");
   if (!Object.hasOwn(SITUACOES, data.situacao)) throw new HttpError(422, "Selecione uma situação válida.");
   if (data.situacao === "emitido" && !matricula) throw new HttpError(422, "Informe a matrícula antes de marcar a carteirinha como emitida.");
+  let emissao = limparTexto(data.emissao) || null;
+  if (emissao && !dataValida(emissao)) throw new HttpError(422, "Confira a data de emissão.", { emissao: "Confira a data de emissão." });
+  if (!emissao && data.situacao === "emitido") emissao = hojeSP();
   let result;
   try {
-    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
-      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
+    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?," + EXTRA_COLUMNS.map(k => k + "=?").join(",") + ",emissao=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
+      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), emissao, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
   } catch (error) {
     if (/UNIQUE constraint/i.test(String(error.message) + " " + String(error.cause?.message))) throw new HttpError(409, "Essa matrícula já pertence a outro cadastro.");
     throw error;
@@ -385,7 +464,7 @@ function modeloDaLinha(row) {
   if (!row) throw new HttpError(503, "A secretaria precisa aplicar a atualização do banco de carteirinhas.");
   return {
     revisao: row.revisao,
-    config: row.revisao ? JSON.parse(row.configuracao) : modeloInicial(),
+    config: row.revisao ? completarModelo(JSON.parse(row.configuracao)) : modeloInicial(),
     frente: row.frente ? { chave:row.frente, pagina:row.pagina_frente, tipo:row.tipo_frente } : null,
     verso: row.verso ? { chave:row.verso, pagina:row.pagina_verso, tipo:row.tipo_verso } : null
   };
@@ -470,7 +549,7 @@ async function fichasParaImpressao(request, db) {
   const data = await readJson(request);
   const situacao = data.situacao || "";
   if (situacao && !Object.hasOwn(SITUACOES,situacao)) throw new HttpError(422, "Selecione uma situação válida.");
-  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
+  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone," + EXTRA_COLUMNS.join(",") + ",emissao,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
   const [model,records] = await db.batch([db.prepare(SELECT_MODELO),situacao ? db.prepare(sql).bind(situacao) : db.prepare(sql)]);
   const saved = modeloDaLinha(model.results[0]);
   if (!saved.frente) throw new HttpError(422, "Salve a arte definitiva para preparar o lote.");

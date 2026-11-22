@@ -28,7 +28,7 @@ function fixture(t) {
   return { env, req, login };
 }
 function entry(changes = {}) {
-  return { solicitacao: crypto.randomUUID(), nome:"Pessoa de Teste", telefone:"(11) 90000-0000", ano:"2020", funcao:"Membro", consentimento:true, versaoConsentimento:VERSAO_CONSENTIMENTO, ...changes };
+  return { solicitacao: crypto.randomUUID(), nome:"Pessoa de Teste", telefone:"(11) 90000-0000", ano:"2020", funcao:"Membro", nascimento:"1990-05-12", consentimento:true, versaoConsentimento:VERSAO_CONSENTIMENTO, ...changes };
 }
 
 test("recebe, normaliza e confirma apenas uma vez, mesmo ao repetir o mesmo envio",async t => {

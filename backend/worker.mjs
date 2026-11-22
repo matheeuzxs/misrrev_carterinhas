@@ -1,5 +1,5 @@
-import { modeloInicial, conferirModelo, LIMITE_ARTE, pendenciasDaFicha } from "../site/assets/impressao/modelo.js";
-import { chaveBusca, limparTexto, mostrarTelefone, validarDados, SITUACOES, VERSAO_CONSENTIMENTO } from "../site/assets/dados.js";
+import { modeloInicial, completarModelo, conferirModelo, LIMITE_ARTE, pendenciasDaFicha } from "../site/assets/impressao/modelo.js";
+import { chaveBusca, limparTexto, mostrarTelefone, mostrarData, mostrarCpf, dataValida, hojeSP, validarDados, SITUACOES, VERSAO_CONSENTIMENTO } from "../site/assets/dados.js";
 
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "__Host-misrrev";
@@ -7,7 +7,8 @@ const SESSION_SECONDS = 4 * 60 * 60;
 const SESSION_LONG_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_LIMIT = 480 * 1024;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
+const EXTRA_COLUMNS = ["nascimento","batismo","pai","mae","estado_civil","rg","cpf","naturalidade"];
+const MEMBER_COLUMNS = "id, protocolo, nome, telefone, ano, funcao, " + EXTRA_COLUMNS.join(", ") + ", emissao, matricula, situacao, recebido_em, atualizado_em, revisao, foto IS NOT NULL AS tem_foto";
 const SAFETY_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   "X-Content-Type-Options": "nosniff",
@@ -128,8 +129,8 @@ async function submit(request, db, key) {
   const code = "MR-" + id.replace(/-/g, "").slice(-12).toUpperCase().match(/.{4}/g).join("-");
   const time = new Date().toISOString();
   const inserted = await db.prepare(
-    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao,consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
-  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, VERSAO_CONSENTIMENTO, time, time).first();
+    "INSERT INTO membros(id,solicitacao,resumo_envio,protocolo,nome,nome_busca,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",consentimento_versao,recebido_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?," + EXTRA_COLUMNS.map(() => "?").join(",") + ",?,?,?) ON CONFLICT(solicitacao) DO NOTHING RETURNING protocolo"
+  ).bind(id, data.solicitacao, digest, code, values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), VERSAO_CONSENTIMENTO, time, time).first();
   if (inserted) return json({ protocolo: inserted.protocolo }, 201);
   const existing = await db.prepare("SELECT protocolo, resumo_envio FROM membros WHERE solicitacao=?").bind(data.solicitacao).first();
   if (existing?.resumo_envio !== digest) throw new HttpError(409, "Este envio já foi registrado com outros dados. Para uma correção, fale com a Julia.");
@@ -179,9 +180,9 @@ function filterFor(data) {
     args.push(status);
   }
   if (term) {
-    clauses.push("(instr(nome_busca,?)>0 OR instr(lower(protocolo),?)>0 OR instr(COALESCE(matricula,''),?)>0 OR instr(telefone,?)>0)");
+    clauses.push("(instr(nome_busca,?)>0 OR instr(lower(protocolo),?)>0 OR instr(COALESCE(matricula,''),?)>0 OR instr(telefone,?)>0 OR instr(COALESCE(cpf,''),?)>0)");
     const tel = /^[0-9+()\s-]+$/.test(term) ? (term.replace(/\D/g,"") || term) : term;
-    args.push(term, term, term, tel);
+    args.push(term, term, term, tel, tel);
   }
   return { sql: clauses.length ? " WHERE " + clauses.join(" AND ") : "", args };
 }
@@ -209,13 +210,13 @@ function csvCell(value) {
 async function exportMembers(request, db) {
   requireMethod(request, "POST");
   const f = filterFor(await readJson(request));
-  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
-  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Matrícula","Situação","Foto anexada","Recebido em"];
+  const data = await db.prepare("SELECT protocolo,nome,telefone,ano,funcao," + EXTRA_COLUMNS.join(",") + ",emissao,matricula,situacao,foto IS NOT NULL AS tem_foto,recebido_em FROM membros" + f.sql + " ORDER BY ordem").bind(...f.args).all();
+  const header = ["Protocolo","Nome completo","Telefone com DDD","Membro desde","Função","Data de nascimento","Data de batismo","Pai","Mãe","Estado civil","RG","CPF","Natural de","Data de emissão","Matrícula","Situação","Foto anexada","Recebido em"];
   const rows = [header.map(csvCell).join(";")];
   const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
   for (const m of data.results) {
     const time = dateFormat.format(new Date(m.recebido_em));
-    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
+    rows.push([m.protocolo,m.nome,mostrarTelefone(m.telefone),m.ano,m.funcao,mostrarData(m.nascimento),mostrarData(m.batismo),m.pai,m.mae,m.estado_civil,m.rg,mostrarCpf(m.cpf),m.naturalidade,mostrarData(m.emissao),m.matricula,SITUACOES[m.situacao],m.tem_foto ? "Sim" : "Não",time].map(csvCell).join(";"));
   }
   return new Response("\uFEFF" + rows.join("\r\n") + "\r\n", { headers: { ...SAFETY_HEADERS, "Content-Type": "text/csv; charset=UTF-8", "Content-Disposition": 'attachment; filename="cadastros-misrrev.csv"' } });
 }
@@ -245,10 +246,13 @@ async function updateMember(request, db, id) {
   if (matricula && (!/^\d{1,12}$/.test(matricula) || !Number(matricula))) throw new HttpError(422, "Use de 1 a 12 dígitos para a matrícula.");
   if (!Object.hasOwn(SITUACOES, data.situacao)) throw new HttpError(422, "Selecione uma situação válida.");
   if (data.situacao === "emitido" && !matricula) throw new HttpError(422, "Informe a matrícula antes de marcar a carteirinha como emitida.");
+  let emissao = limparTexto(data.emissao) || null;
+  if (emissao && !dataValida(emissao)) throw new HttpError(422, "Confira a data de emissão.", { emissao: "Confira a data de emissão." });
+  if (!emissao && data.situacao === "emitido") emissao = hojeSP();
   let result;
   try {
-    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
-      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
+    result = await db.prepare("UPDATE membros SET nome=?,nome_busca=?,telefone=?,ano=?,funcao=?," + EXTRA_COLUMNS.map(k => k + "=?").join(",") + ",emissao=?,matricula=?,situacao=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
+      .bind(values.nome, chaveBusca(values.nome), values.telefone, values.ano, values.funcao, ...EXTRA_COLUMNS.map(k => values[k]), emissao, matricula || null, data.situacao, new Date().toISOString(), id, revision(data.revisao)).run();
   } catch (error) {
     if (/UNIQUE constraint/i.test(String(error.message) + " " + String(error.cause?.message))) throw new HttpError(409, "Essa matrícula já pertence a outro cadastro.");
     throw error;
@@ -287,7 +291,7 @@ function modeloDaLinha(row) {
   if (!row) throw new HttpError(503, "A secretaria precisa aplicar a atualização do banco de carteirinhas.");
   return {
     revisao: row.revisao,
-    config: row.revisao ? JSON.parse(row.configuracao) : modeloInicial(),
+    config: row.revisao ? completarModelo(JSON.parse(row.configuracao)) : modeloInicial(),
     frente: row.frente ? { chave:row.frente, pagina:row.pagina_frente, tipo:row.tipo_frente } : null,
     verso: row.verso ? { chave:row.verso, pagina:row.pagina_verso, tipo:row.tipo_verso } : null
   };
@@ -372,7 +376,7 @@ async function fichasParaImpressao(request, db) {
   const data = await readJson(request);
   const situacao = data.situacao || "";
   if (situacao && !Object.hasOwn(SITUACOES,situacao)) throw new HttpError(422, "Selecione uma situação válida.");
-  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
+  const sql = "SELECT id,protocolo,nome,matricula,funcao,ano,telefone," + EXTRA_COLUMNS.join(",") + ",emissao,revisao,foto IS NOT NULL AS tem_foto FROM membros" + (situacao ? " WHERE situacao=?" : "") + " ORDER BY nome_busca,ordem";
   const [model,records] = await db.batch([db.prepare(SELECT_MODELO),situacao ? db.prepare(sql).bind(situacao) : db.prepare(sql)]);
   const saved = modeloDaLinha(model.results[0]);
   if (!saved.frente) throw new HttpError(422, "Salve a arte definitiva para preparar o lote.");

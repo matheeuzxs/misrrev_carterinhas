@@ -27,6 +27,13 @@ export function abrirBanco(path = ":memory:") {
   for (const arquivo of ["001_cadastros.sql","002_carteirinhas.sql"]) {
     sqlite.exec(readFileSync(new URL("../banco/" + arquivo, import.meta.url), "utf8"));
   }
+  // 004 usa ALTER TABLE, que não pode ser repetido; aplica só se faltar a coluna.
+  if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('membros') WHERE name='nascimento'").get()) {
+    sqlite.exec(readFileSync(new URL("../banco/004_ficha_completa.sql", import.meta.url), "utf8"));
+  }
+  if (!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name='configuracao'").get()) {
+    sqlite.exec(readFileSync(new URL("../banco/003_configuracao.sql", import.meta.url), "utf8"));
+  }
   return {
     prepare: sql => new Statement(sqlite, sql),
     batch(statements) {

@@ -1,5 +1,6 @@
 import { $, api, aviso, linkArquivo } from "./comum.js";
-import { limparTexto, mostrarTelefone, SITUACOES, validarDados } from "./dados.js";
+import { limparTexto, mostrarTelefone, mostrarCpf, SITUACOES, validarDados } from "./dados.js";
+const EXTRAS = ["nascimento","batismo","estado_civil","naturalidade","pai","mae","rg","cpf"];
 
 const base = "/api/secretaria";
 const login = $("#login-view");
@@ -206,6 +207,8 @@ function fillFields(m) {
   $("#ed-telefone").value = mostrarTelefone(m.telefone);
   $("#ed-ano").value = m.ano || "";
   $("#ed-funcao").value = m.funcao;
+  for (const k of EXTRAS) $("#ed-" + k).value = (k === "cpf" ? mostrarCpf(m.cpf) : m[k]) || "";
+  $("#ed-emissao").value = m.emissao || "";
   $("#ed-matricula").value = m.matricula || "";
   $("#ed-situacao").value = m.situacao;
   updateHeader(m);
@@ -264,7 +267,8 @@ dialog.addEventListener("close", clearRecord);
 recordForm.addEventListener("submit", async event => {
   event.preventDefault();
   if (!current || busy) return;
-  const { fields, errors } = validarDados({ nome: $("#ed-nome").value, telefone: $("#ed-telefone").value, ano: $("#ed-ano").value, funcao: $("#ed-funcao").value });
+  const { fields, errors } = validarDados({ nome: $("#ed-nome").value, telefone: $("#ed-telefone").value, ano: $("#ed-ano").value, funcao: $("#ed-funcao").value,
+    ...Object.fromEntries(EXTRAS.map(k => [k, $("#ed-" + k).value])) });
   if (Object.keys(errors).length) {
     const key = Object.keys(errors)[0];
     aviso($("#record-msg"), errors[key]);
@@ -273,7 +277,7 @@ recordForm.addEventListener("submit", async event => {
   }
   setBusy(true);
   try {
-    current = await staff("/membros/" + current.id, { method: "PATCH", json: { ...fields, matricula: $("#ed-matricula").value, situacao: $("#ed-situacao").value, revisao: current.revisao } });
+    current = await staff("/membros/" + current.id, { method: "PATCH", json: { ...fields, emissao: $("#ed-emissao").value, matricula: $("#ed-matricula").value, situacao: $("#ed-situacao").value, revisao: current.revisao } });
     fillFields(current);
     aviso($("#record-msg"), "Ficha salva.", true);
     await loadList(page);
