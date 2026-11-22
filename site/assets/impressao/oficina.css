@@ -1,0 +1,49 @@
+.studio-nav{display:flex;align-items:center;gap:20px;margin:-5px 0 20px;font-weight:650;font-size:14px;color:var(--navy)}
+.studio-nav a{padding:6px 0;border-bottom:1px solid #b39463}
+.studio-nav .icon{width:14px;height:14px}
+.studio-panel{padding:25px 29px;margin-bottom:23px}
+.studio-heading,.preview-label,.batch-actions,.save-line{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.studio-heading{margin-bottom:6px}
+.studio-heading h2{font-size:38px;line-height:1.13}
+.model-state{color:#6a552e;font-size:12px;font-weight:650;padding:5px 10px;border-radius:18px;background:#f5efde}
+.editor-set{padding:0;margin:16px 0 0;border:0;min-width:0}
+.uploads,.dimensions,.mini-grid,.batch-controls,.editor-columns{display:grid;gap:13px}
+.uploads{grid-template-columns:1fr 1fr}
+.upload-side{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:#f9f8f4;border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.upload-side b,.upload-side small{display:block}
+.upload-side b{font-size:14px}.upload-side small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.upload-controls{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.upload-controls .btn{min-height:36px;padding:7px 10px;font-size:12px}
+.plain-small{border:0;background:none;color:#983c31;font-size:12px;text-decoration:underline}
+.dimensions,.batch-controls{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:16px}
+.help-line{font-size:12.5px;color:var(--muted);line-height:1.55;margin:7px 0 0}
+.editor-columns{grid-template-columns:minmax(0,1.5fr) minmax(255px,1fr);align-items:start;gap:24px;border-block:1px solid var(--line);padding-block:20px;margin-top:18px}
+.editor-columns h3{font-size:16px;font-weight:700;margin:0}
+.preview-label{margin:0 0 9px}
+.side-switch{display:inline-flex;border:1px solid #ccd0d2;border-radius:8px;overflow:hidden}
+.side-switch button{border:0;background:#fff;color:var(--muted);font-size:12px;padding:7px 11px}
+.side-switch [aria-pressed="true"]{color:white;background:var(--navy)}
+.preview-board{min-height:195px;display:grid;place-items:center;background-color:#edf0ef;background-image:radial-gradient(#c8cfce .7px,transparent .8px);background-size:9px 9px;border:1px solid #d7dcda;border-radius:10px;overflow:hidden;padding:16px}
+.preview-board p{font-size:14px;color:#435568;text-align:center;background:#edf0ef;padding:6px 12px}
+.preview-board canvas{display:block;max-width:100%;max-height:430px;width:auto;height:auto;box-shadow:0 2px 9px #14233b33;cursor:crosshair;background:#fff;touch-action:manipulation}
+.field-editor>.mini-grid{margin-top:10px}
+.mini-grid{grid-template-columns:1fr 1fr;gap:8px 10px}
+.studio-panel .field label{margin-bottom:3px;font-size:12px}
+.studio-panel .field input,.studio-panel .field select{min-height:39px;padding:7px 10px}
+.studio-panel .field input[type=color]{padding:3px;cursor:pointer}
+.tick{display:flex;align-items:center;gap:7px;font-size:13px;width:max-content;max-width:100%;color:var(--ink)}
+.tick input{accent-color:var(--navy);width:16px;height:16px}
+.save-line{justify-content:flex-end;margin-top:16px}
+.save-line .notice{margin:0 auto 0 0;font-size:13px}
+.batch-controls{margin-bottom:12px}
+.batch-summary{background:#f7f5ec;border-left:3px solid #b69661;border-radius:0 7px 7px 0;padding:11px 14px;margin:16px 0}
+.batch-summary strong{font-size:15px}
+.batch-summary p{font-size:13px;color:var(--muted)}
+.batch-actions{justify-content:flex-start;flex-wrap:wrap}
+.incomplete{padding:9px 0 13px;font-size:13px}
+.incomplete summary{cursor:pointer;font-weight:650}.incomplete ul{max-height:210px;overflow:auto;padding-left:20px}
+.incomplete li{margin:3px 0}
+.dash-buttons{display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:780px){.editor-columns{grid-template-columns:1fr}.preview-board{min-height:150px}.field-editor{max-width:none}.batch-controls{grid-template-columns:1fr 1fr}.uploads{gap:8px}}
+@media(max-width:600px){.studio-panel{padding:17px 15px}.studio-heading h2{font-size:30px}.studio-heading{align-items:flex-start}.uploads{grid-template-columns:1fr}.dimensions{gap:7px;grid-template-columns:repeat(2,minmax(0,1fr))}.dimensions>div:last-child{grid-column:1/-1}.batch-controls{grid-template-columns:1fr}.save-line{align-items:stretch;flex-direction:column}.preview-board{padding:10px}.studio-panel .field input,.studio-panel .field select{font-size:16px}.batch-actions .btn{width:100%}.model-state{font-size:10px}.dash-buttons .btn{font-size:12px}}
+

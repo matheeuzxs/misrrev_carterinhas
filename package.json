@@ -1,0 +1,17 @@
+{
+  "name": "cadastro-membros-misrrev",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cadastro de membros da Missão Resgate Restaurando Vidas",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "preparar": "node ferramentas/preparar.mjs",
+    "prestart": "node ferramentas/preparar.mjs",
+    "start": "node ferramentas/local.mjs",
+    "pretest": "node ferramentas/preparar.mjs",
+    "test": "node --test"
+  }
+}

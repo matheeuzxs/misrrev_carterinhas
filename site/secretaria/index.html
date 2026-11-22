@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101e39"><meta name="robots" content="noindex,nofollow">
+  <title>Secretaria · MISRREV</title>
+  <link rel="icon" type="image/png" href="/assets/simbolo-misrrev.png">
+  <link rel="preload" href="/assets/fontes/instrument-serif.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/assets/base.css">
+  <link rel="stylesheet" href="/assets/secretaria.css">
+  <script type="module" src="/assets/secretaria.js"></script>
+</head>
+<body class="admin"><a class="skip" href="#admin-main">Ir para o conteúdo</a>
+<header class="site-header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Missão Resgate Restaurando Vidas, início"><img src="/assets/simbolo-misrrev.png" alt="" width="47" height="41"><span><strong>Missão Resgate</strong><small>Restaurando Vidas</small></span></a><nav class="main-nav" aria-label="Secretaria"><a class="back-home" href="/"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-left"></use></svg><span>Voltar ao cadastro</span></a><button type="button" class="btn secondary" id="logout" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#logout"></use></svg>Sair</button></nav></div></header>
+<main class="shell" id="admin-main">
+  <noscript><p class="notice error">Ative o JavaScript para usar a secretaria.</p></noscript>
+  <section class="login-panel panel" id="login-view">
+    <div class="login-art"><div class="eyebrow light-line">MISRREV</div><h1>Área da <em>secretaria</em></h1><p>Confira os dados dos membros e prepare as informações para emitir as carteirinhas.</p></div>
+    <form class="login-form" id="login-form"><div class="login-icon"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#lock"></use></svg></div><div class="panel-heading"><h2 id="login-heading" tabindex="-1">Entrar</h2><p>Acesso da equipe responsável pelos cadastros.</p></div>
+      <div class="field"><label for="senha">Senha da secretaria</label><div class="password-wrap"><input id="senha" name="senha" type="password" autocomplete="current-password" required maxlength="256"><button type="button" id="show-password" aria-label="Mostrar senha" aria-pressed="false"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#eye"></use></svg></button></div></div>
+      <p id="login-msg" class="notice error" role="alert" hidden></p><button class="btn primary" id="login-btn" type="submit">Acessar secretaria <svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-right"></use></svg></button>
+    </form>
+  </section>
+  <section id="dashboard" hidden>
+    <div class="dash-heading"><div><div class="eyebrow dash-eyebrow">Secretaria</div><h1 tabindex="-1" id="dash-title">Cadastros de membros</h1><p>Consulte as fichas e acompanhe a emissão das carteirinhas.</p></div><div class="dash-buttons"><a class="btn primary" href="/secretaria/carteirinhas/"><svg class="icon" aria-hidden="true"><use href="/assets/icones.svg#card"></use></svg>Carteirinhas para impressão</a><button id="export-csv" type="button" class="btn secondary"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#download"></use></svg>Exportar CSV</button></div></div>
+    <div class="panel results-panel"><form class="filters" id="filters" role="search"><div class="field search-field"><label for="busca">Buscar cadastro</label><div class="with-icon"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#search"></use></svg><input class="filter-input" type="search" id="busca" name="busca" maxlength="100" placeholder="Nome, telefone, matrícula ou protocolo"></div></div><div class="field status-field"><label for="filter-status">Situação</label><div class="select-wrap"><select class="filter-select" id="filter-status" name="situacao"><option value="">Todas as situações</option><option value="recebido">Recebido</option><option value="conferido">Conferido</option><option value="emitido">Emitido</option></select><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#chevron"></use></svg></div></div><button type="submit" class="btn primary">Buscar</button></form>
+    <div class="results-head"><h2>Lista de membros</h2><span id="number-results" role="status"></span></div>
+    <p id="dash-msg" class="notice error" role="alert" hidden></p>
+    <div id="empty" class="empty" hidden><span class="empty-icon"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#users"></use></svg></span><h3 id="empty-title"></h3><p id="empty-detail"></p></div>
+    <ul id="member-list" class="member-list" aria-label="Cadastros"></ul>
+    <div class="pagination" id="page-controls" hidden><button id="previous" class="btn secondary" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-left"></use></svg>Anterior</button><span id="page-label"></span><button id="next" class="btn secondary" type="button">Próxima<svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-right"></use></svg></button></div>
+    </div>
+  </section>
+</main>
+<dialog id="record-dialog" class="record-dialog" aria-labelledby="record-title">
+  <div class="dialog-head"><div><div class="eyebrow dash-eyebrow">Ficha do membro</div><h2 id="record-title"></h2><p id="record-protocol"></p></div><button type="button" class="round-btn" id="close-dialog" aria-label="Fechar ficha"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#close"></use></svg></button></div>
+  <div class="dialog-content">
+    <form id="record-form" novalidate>
+      <div class="field-grid"><div class="field full"><label for="ed-nome">Nome completo</label><input id="ed-nome" maxlength="100" required></div>
+      <div class="field"><label for="ed-telefone">Telefone com DDD</label><input id="ed-telefone" type="tel" inputmode="tel" maxlength="23" required></div>
+      <div class="field"><label for="ed-ano">Membro desde</label><input id="ed-ano" type="text" inputmode="numeric" maxlength="4" placeholder="Ano de ingresso"></div>
+      <div class="field"><label for="ed-funcao">Função na igreja</label><input id="ed-funcao" list="role-options" maxlength="45" required><datalist id="role-options"><option value="Membro"></option><option value="Cooperador(a)"></option><option value="Diácono(a)"></option><option value="Diaconisa"></option><option value="Presbítero(a)"></option><option value="Evangelista"></option><option value="Missionário(a)"></option><option value="Pastor(a)"></option></datalist></div>
+      <div class="field"><label for="ed-matricula">Matrícula</label><input id="ed-matricula" type="text" inputmode="numeric" maxlength="12" placeholder="Número da igreja"></div>
+      <div class="field full"><label for="ed-situacao">Situação da carteirinha</label><div class="select-wrap"><select id="ed-situacao"><option value="recebido">Recebido</option><option value="conferido">Conferido</option><option value="emitido">Emitido</option></select><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#chevron"></use></svg></div></div></div>
+      <p id="record-msg" class="notice error" role="status" hidden></p><div class="editor-actions"><button type="submit" id="save-record" class="btn primary"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#check"></use></svg>Salvar ficha</button></div>
+    </form>
+    <section class="photo-section"><div class="photo-frame" id="photo-frame"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg><img id="portrait" alt="Foto do membro" hidden></div><div class="photo-controls"><h3>Foto da carteirinha</h3><p id="photo-info">Use a foto tirada com Matheus.</p><div class="photo-buttons"><label class="btn secondary file-label" for="photo-input"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg><span id="photo-action">Adicionar foto</span><input id="photo-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp"></label><button type="button" id="download-photo" class="btn link-btn" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#download"></use></svg>Baixar JPEG</button></div></div></section>
+    <p id="photo-msg" class="notice" role="status" hidden></p>
+    <div class="delete-tools"><button id="ask-delete" class="danger-link" type="button">Excluir cadastro</button>
+      <div class="delete-confirm" id="delete-confirm" hidden><p>Excluir os dados e a foto de <strong id="delete-name"></strong>?</p><div><button type="button" id="cancel-delete" class="btn secondary">Cancelar</button><button type="button" id="confirm-delete" class="btn danger">Sim, excluir</button></div><p id="delete-error" class="notice error" role="alert" hidden></p></div></div>
+  </div></dialog>
+<footer class="site-footer"><div class="shell footer-inner"><div class="footer-name"><img src="/assets/simbolo-misrrev.png" alt="" width="25" height="22">Missão Resgate Restaurando Vidas</div><div class="footer-address"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#pin"></use></svg><span>Av. Alfredo Barbosa, 202 · Jardim Rosana · Guarulhos, SP</span></div></div></footer></body></html>

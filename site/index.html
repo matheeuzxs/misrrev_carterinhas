@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101e39"><meta name="description" content="Cadastro de membros da Missão Resgate Restaurando Vidas para emissão da carteirinha de membro.">
+  <title>Cadastro de membros · MISRREV</title>
+  <link rel="icon" type="image/png" href="/assets/simbolo-misrrev.png">
+  <link rel="preload" href="/assets/fontes/instrument-serif.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/assets/base.css">
+  
+  <script type="module" src="/assets/cadastro.js"></script>
+</head>
+<body>
+  <a class="skip" href="#cadastro">Ir para o formulário</a>
+  <header class="site-header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Missão Resgate Restaurando Vidas, início"><img src="/assets/simbolo-misrrev.png" alt="" width="47" height="41"><span><strong>Missão Resgate</strong><small>Restaurando Vidas</small></span></a>
+    <nav class="main-nav" aria-label="Navegação principal"><a class="nav-current" aria-current="page" href="#cadastro">Cadastro</a><a href="#duvidas">Dúvidas</a><a class="secretaria-link" href="/secretaria/"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#lock"></use></svg><span>Secretaria</span></a></nav>
+  </div></header>
+  <main>
+    <section class="hero" aria-labelledby="hero-title"><div class="shell hero-inner">
+      <div class="hero-copy"><div class="eyebrow light-line">Carteirinha de membro</div>
+        <h1 id="hero-title">Cadastro de <em>membros</em></h1>
+        <p>Envie seus dados para que a secretaria da igreja prepare a sua carteirinha.</p>
+        <button type="button" id="preview-toggle" class="preview-toggle" aria-expanded="false" aria-controls="visual-card"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#card"></use></svg><span>Ver carteirinha de exemplo</span><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#chevron"></use></svg></button>
+      </div>
+      <div id="visual-card" class="card-stage" aria-label="Modelo ilustrativo da carteirinha">
+        <div class="back-card" aria-hidden="true"></div>
+        <div class="member-card">
+          <div class="guilloche" aria-hidden="true"></div>
+          <img class="card-watermark" src="/assets/simbolo-misrrev.png" alt="">
+          <div class="card-brand"><div class="card-lockup"><img src="/assets/simbolo-misrrev.png" alt=""><span>MISSÃO RESGATE<small>RESTAURANDO VIDAS</small></span></div><b id="card-role">MEMBRO</b></div>
+          <div class="card-body"><span class="card-label">Nome do membro</span><strong class="card-name" id="card-name">Seu nome aqui</strong></div>
+          <div class="card-fields"><div><span class="card-label">Matrícula</span><b>••••</b></div><div><span class="card-label">Membro desde</span><b id="card-year">—</b></div></div>
+        </div>
+        <div class="card-caption"><span aria-hidden="true"></span>Modelo ilustrativo · arte provisória</div>
+      </div>
+    </div></section>
+    <div class="shell layout">
+      <section class="form-panel panel" id="cadastro" aria-label="Formulário de cadastro">
+        <ol class="stepper"><li id="step-label-1" class="is-current" aria-current="step"><span class="step-n">1</span>Preencher dados</li><li class="step-line" aria-hidden="true"></li><li id="step-label-2"><span class="step-n">2</span>Revisar e enviar</li></ol>
+        <noscript><p class="notice error">Ative o JavaScript para enviar seu cadastro ou procure a Julia na igreja.</p></noscript>
+        <form id="member-form" novalidate>
+          <div id="entry-step">
+            <div class="panel-heading"><h2 tabindex="-1" id="entry-heading">Seus dados</h2><p>Informe o nome que deve aparecer na carteirinha.</p></div>
+            <div class="field-grid">
+              <div class="field full"><label for="nome">Nome completo</label><input id="nome" name="nome" autocomplete="name" maxlength="100" placeholder="Seu nome e sobrenome" required aria-describedby="erro-nome"><small class="field-error" id="erro-nome"></small></div>
+              <div class="field"><label for="telefone">Telefone com DDD</label><input id="telefone" name="telefone" autocomplete="tel-national" type="tel" inputmode="tel" maxlength="23" placeholder="(11) 99999-9999" required aria-describedby="erro-telefone"><small class="field-error" id="erro-telefone"></small></div>
+              <div class="field"><label for="ano">Membro desde <span>(opcional)</span></label><input id="ano" name="ano" type="text" inputmode="numeric" maxlength="4" placeholder="Ano de ingresso" aria-describedby="erro-ano"><small class="field-error" id="erro-ano"></small></div>
+              <div class="field full"><label for="funcao">Função na igreja</label><div class="select-wrap"><select id="funcao" name="funcao"><option>Membro</option><option>Cooperador(a)</option><option>Diácono(a)</option><option>Diaconisa</option><option>Presbítero(a)</option><option>Evangelista</option><option>Missionário(a)</option><option>Pastor(a)</option><option>Outro</option></select><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#chevron"></use></svg></div></div>
+              <div class="field full" id="other-wrap" hidden><label for="outra">Qual é a sua função?</label><input id="outra" name="outra" maxlength="45" placeholder="Escreva a sua função" aria-describedby="erro-outra"><small class="field-error" id="erro-outra"></small></div>
+            </div>
+            <div class="form-actions"><span class="quiet-info"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#lock"></use></svg>Uso da secretaria</span><button class="btn primary" type="submit">Revisar dados <svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-right"></use></svg></button></div>
+          </div>
+          <div id="review-step" hidden>
+            <div class="panel-heading"><h2 tabindex="-1" id="review-heading">Confira seus dados</h2><p>Se precisar corrigir algo, volte e edite antes de enviar.</p></div>
+            <dl id="review-data" class="review-data"></dl>
+            <label class="consent"><input type="checkbox" id="consentimento" name="consentimento" aria-describedby="erro-consentimento"><span>Sou o membro ou seu responsável e autorizo a Missão Resgate Restaurando Vidas a usar estes dados e a foto tirada na igreja para preparar a carteirinha. A secretaria pode entrar em contato sobre este cadastro.</span></label>
+            <small class="field-error" id="erro-consentimento"></small>
+            <p id="send-error" class="notice error" role="alert" hidden></p>
+            <div class="form-actions"><button class="btn link-btn" id="back" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-left"></use></svg>Editar dados</button><button class="btn primary" id="send" type="submit"><span>Enviar cadastro</span><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#check"></use></svg></button></div>
+          </div>
+        </form>
+        <div id="success" hidden><div class="success-emblem"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#check"></use></svg></div><div class="panel-heading"><h2 id="success-heading" tabindex="-1">Cadastro recebido!</h2><p>A secretaria recebeu suas informações. Guarde o protocolo para falar com a Julia sobre a carteirinha.</p></div><div class="receipt"><div><small>Seu protocolo</small><strong id="protocol"></strong></div><button class="btn secondary" id="copy-code" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#copy"></use></svg><span>Copiar</span></button></div><p class="muted">Para a foto, procure o Matheus na igreja.</p><button id="new-member" class="btn secondary" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#plus"></use></svg>Cadastrar outro membro</button><p role="status" id="copy-message" class="sr-only"></p></div>
+      </section>
+      <aside class="side" aria-label="Orientações para a carteirinha">
+        <section class="guide panel"><h2>Depois do cadastro</h2>
+          <div class="guide-step"><div class="guide-icon"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#file-check"></use></svg></div><div><h3>Conferência com Julia</h3><p>A secretaria confere seu nome e os dados que vão na carteirinha.</p></div></div>
+          <div class="guide-step"><div class="guide-icon"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg></div><div><h3>Foto com Matheus</h3><p>Procure o Matheus na igreja para tirar a foto da sua carteirinha.</p></div></div>
+        </section>
+        <section class="faq" id="duvidas" aria-labelledby="faq-title"><h2 id="faq-title" tabindex="-1">Dúvidas frequentes</h2>
+          <details><summary>Não lembro o ano em que entrei.<svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#plus"></use></svg></summary><p>Deixe “Membro desde” em branco. A Julia pode completar o ano na conferência.</p></details>
+          <details><summary>Como corrijo um dado já enviado?<svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#plus"></use></svg></summary><p>Procure a Julia na igreja com seu protocolo. Ela pode corrigir as informações ou excluir o cadastro, se você pedir.</p></details>
+          <details><summary>Preciso enviar a foto agora?<svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#plus"></use></svg></summary><p>A foto é tirada com o Matheus na igreja. A equipe pode adicioná-la ao seu cadastro depois.</p></details>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="shell footer-inner"><div class="footer-name"><img src="/assets/simbolo-misrrev.png" alt="" width="25" height="22">Missão Resgate Restaurando Vidas</div><div class="footer-address"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#pin"></use></svg><span>Av. Alfredo Barbosa, 202 · Jardim Rosana · Guarulhos, SP</span></div></div></footer>
+</body></html>
