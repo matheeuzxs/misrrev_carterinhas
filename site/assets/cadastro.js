@@ -33,8 +33,8 @@ function preview() {
   const data = getData();
   const name = limparTexto(data.nome);
   $("#card-name").textContent = name || "Seu nome aqui";
-  $("#card-name").classList.toggle("long-name", name.length > 21);
-  $("#card-year").textContent = mostrarData(data.nascimento) || "—";
+  $("#card-name").classList.toggle("long-name", name.length > 26);
+  $("#card-batismo").textContent = mostrarData(data.batismo) || "—";
   $("#card-role").textContent = data.funcao || "Membro";
 }
 
