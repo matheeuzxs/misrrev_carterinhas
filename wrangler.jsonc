@@ -1,6 +1,6 @@
 {
-  // Configuração do Worker "misrrev-carterinhas" (Cloudflare Workers + Builds pelo GitHub).
-  "name": "misrrev-carterinhas",
+  // Configuração do Worker "misrrev-carteirinhas" (Cloudflare Workers + Builds pelo GitHub).
+  "name": "misrrev-carteirinhas",
   "main": "backend/worker.mjs",
   "compatibility_date": "2025-09-01",
   "assets": {
