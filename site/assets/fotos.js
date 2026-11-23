@@ -1,11 +1,12 @@
 import { $, api, aviso, prepararFoto } from "./comum.js";
 import { chaveBusca } from "./dados.js";
 
-// Tela de fotos: várias fotos de uma vez, cada uma ligada a um membro pelo nome.
+// Banco de fotos: as fotos ficam guardadas no site até alguém escolher de quem é cada uma.
+// "Enviar para a carteirinha" move a foto do banco para a ficha do membro.
 let membros = [];
-let itens = [];
+let banco = [];
 let ocupado = false;
-let seq = 0;
+const escolhaPorFoto = new Map();
 
 async function privado(path, options) {
   try { return await api(path, options); }
@@ -15,16 +16,17 @@ async function privado(path, options) {
   }
 }
 
-// Rótulo único por membro: nome e cargo; se houver nomes repetidos, inclui o protocolo.
+// Rótulo único por membro: nome e cargo; com nomes repetidos, inclui o protocolo.
 function rotulo(m) {
   const base = m.nome + " · " + m.funcao;
   return membros.filter(x => x.nome === m.nome && x.funcao === m.funcao).length > 1 ? base + " · " + m.protocolo : base;
 }
 const porRotulo = texto => membros.find(m => rotulo(m) === texto);
 const porId = id => membros.find(m => m.id === id);
+const urlFoto = id => "/api/secretaria/fotos/" + id;
 
-// Tenta reconhecer o membro pelo nome do arquivo (ex.: "Maria Aparecida (2).jpg").
-function reconhecer(arquivo) {
+// Sugere o membro pelo nome do arquivo (ex.: "Maria Aparecida (2).jpg"), se só um nome combinar.
+function sugerir(arquivo) {
   const chave = chaveBusca(arquivo.replace(/\.[a-z0-9]+$/i, "").replace(/[_\-.()]+/g, " ").replace(/\d+/g, " ")).replace(/\s+/g, " ").trim();
   if (chave.length < 3) return null;
   const exatos = membros.filter(m => chaveBusca(m.nome) === chave);
@@ -34,109 +36,139 @@ function reconhecer(arquivo) {
   return contem.length === 1 ? contem[0] : null;
 }
 
-async function carregarMembros() {
-  membros = (await privado("/api/secretaria/nomes")).membros;
-  const lista = $("#nomes-membros");
-  lista.replaceChildren(...membros.map(m => { const o = document.createElement("option"); o.value = rotulo(m); return o; }));
-  const semFoto = membros.filter(m => !m.tem_foto);
-  $("#sem-foto-resumo").textContent = membros.length ? semFoto.length + " de " + membros.length + " sem foto" : "Nenhum cadastro ainda";
-  $("#sem-foto").replaceChildren(...semFoto.map(m => { const li = document.createElement("li"); li.textContent = m.nome; const s = document.createElement("small"); s.textContent = m.funcao; li.append(s); return li; }));
-  $("#sem-foto-vazio").hidden = !!semFoto.length || !membros.length;
+async function carregar() {
+  const [n, f] = await Promise.all([privado("/api/secretaria/nomes"), privado("/api/secretaria/fotos")]);
+  membros = n.membros;
+  banco = f.fotos;
+  for (const id of [...escolhaPorFoto.keys()]) if (!banco.some(b => b.id === id)) escolhaPorFoto.delete(id);
+  $("#nomes-membros").replaceChildren(...membros.map(m => { const o = document.createElement("option"); o.value = rotulo(m); return o; }));
+  desenharBanco();
+  desenharSemFoto();
 }
 
-function situacao(item) {
-  if (item.feito) return ["ok", "Foto salva no cadastro."];
-  if (item.erro) return ["erro", item.erro];
-  const m = porId(item.membro);
-  if (!m) return ["erro", "Escolha de quem é esta foto."];
-  if (itens.some(o => o !== item && !o.feito && o.membro === item.membro)) return ["erro", "Esta pessoa já está em outra foto da lista."];
-  return m.tem_foto ? ["aviso", "Já tem foto: esta vai substituir a atual."] : ["ok", "Pronta para salvar."];
-}
-
-function desenhar() {
-  const ul = $("#fotos-lista");
-  ul.replaceChildren(...itens.map(item => {
+function desenharBanco() {
+  $("#banco-resumo").textContent = banco.length === 1 ? "1 foto guardada" : banco.length + " fotos guardadas";
+  $("#banco-vazio").hidden = banco.length > 0;
+  $("#banco").replaceChildren(...banco.map(foto => {
     const li = document.createElement("li");
-    li.className = "foto-item" + (item.feito ? " feito" : "");
+    li.className = "banco-item";
     const img = document.createElement("img");
-    img.src = item.url; img.alt = ""; img.width = 72; img.height = 96;
-    const corpo = document.createElement("div");
+    img.src = urlFoto(foto.id); img.alt = ""; img.loading = "lazy"; img.width = 150; img.height = 200;
+    const nome = document.createElement("small");
+    nome.className = "foto-arquivo"; nome.textContent = foto.nome_arquivo;
     const label = document.createElement("label");
-    label.textContent = "De quem é esta foto?";
-    label.htmlFor = "foto-" + item.id;
+    label.htmlFor = "dono-" + foto.id; label.textContent = "De quem é?";
     const input = document.createElement("input");
-    input.id = "foto-" + item.id;
-    input.setAttribute("list", "nomes-membros");
-    input.placeholder = "Digite o nome";
-    input.autocomplete = "off";
-    input.value = porId(item.membro) ? rotulo(porId(item.membro)) : "";
-    input.disabled = item.feito || ocupado;
-    input.addEventListener("change", () => { item.membro = porRotulo(input.value)?.id || null; item.erro = ""; desenhar(); });
-    const arquivo = document.createElement("small");
-    arquivo.className = "foto-arquivo";
-    arquivo.textContent = item.arquivo.name;
-    const [tipo, texto] = situacao(item);
+    input.id = "dono-" + foto.id; input.setAttribute("list", "nomes-membros"); input.placeholder = "Digite o nome"; input.autocomplete = "off";
+    if (!escolhaPorFoto.has(foto.id)) escolhaPorFoto.set(foto.id, sugerir(foto.nome_arquivo)?.id || null);
+    const escolhido = porId(escolhaPorFoto.get(foto.id));
+    input.value = escolhido ? rotulo(escolhido) : "";
+    input.disabled = ocupado;
     const status = document.createElement("small");
-    status.className = "foto-status " + tipo;
-    status.textContent = texto;
-    corpo.append(label, input, arquivo, status);
-    const remover = document.createElement("button");
-    remover.type = "button"; remover.className = "plain-small"; remover.textContent = item.feito ? "Limpar" : "Remover";
-    remover.disabled = ocupado;
-    remover.addEventListener("click", () => { URL.revokeObjectURL(item.url); itens = itens.filter(o => o !== item); desenhar(); });
-    li.append(img, corpo, remover);
+    status.className = "foto-status";
+    const enviar = document.createElement("button");
+    enviar.type = "button"; enviar.className = "btn secondary btn-small"; enviar.textContent = "Enviar para a carteirinha";
+    const atualizarStatus = () => {
+      const m = porId(escolhaPorFoto.get(foto.id));
+      status.className = "foto-status " + (!m ? "" : m.tem_foto ? "aviso" : "ok");
+      status.textContent = !m ? "" : m.tem_foto ? "Já tem foto: esta vai substituir." : "Sem foto ainda.";
+      enviar.disabled = ocupado || !m;
+    };
+    input.addEventListener("change", () => { escolhaPorFoto.set(foto.id, porRotulo(input.value)?.id || null); atualizarStatus(); });
+    enviar.addEventListener("click", () => usar(foto, porId(escolhaPorFoto.get(foto.id))));
+    const apagar = document.createElement("button");
+    apagar.type = "button"; apagar.className = "plain-small"; apagar.textContent = "Apagar do banco"; apagar.disabled = ocupado;
+    apagar.addEventListener("click", () => apagarFoto(foto));
+    atualizarStatus();
+    li.append(img, nome, label, input, status, enviar, apagar);
     return li;
   }));
-  const prontos = itens.filter(i => !i.feito && situacao(i)[0] !== "erro");
-  $("#salvar-fotos").disabled = ocupado || !prontos.length;
-  $("#salvar-fotos").lastChild.textContent = prontos.length > 1 ? "Salvar " + prontos.length + " fotos" : "Salvar foto";
-  $("#fotos-input").disabled = ocupado;
 }
 
-$("#fotos-input").addEventListener("change", e => {
-  const novos = [...(e.target.files || [])].map(arquivo => {
-    const membro = reconhecer(arquivo.name);
-    return { id: ++seq, arquivo, url: URL.createObjectURL(arquivo), membro: membro?.id || null, feito: false, erro: "" };
-  });
-  e.target.value = "";
-  itens.push(...novos);
-  const achados = novos.filter(i => i.membro).length;
-  aviso($("#fotos-msg"), novos.length + (novos.length === 1 ? " foto adicionada" : " fotos adicionadas") + (achados ? "; " + achados + " reconhecida" + (achados === 1 ? "" : "s") + " pelo nome do arquivo." : ". Escolha o nome de cada uma."), true);
-  desenhar();
-});
+function desenharSemFoto() {
+  const semFoto = membros.filter(m => !m.tem_foto);
+  $("#sem-foto-resumo").textContent = membros.length ? semFoto.length + " de " + membros.length : "Nenhum cadastro ainda";
+  $("#sem-foto-vazio").hidden = !!semFoto.length || !membros.length;
+  $("#sem-foto").replaceChildren(...semFoto.map(m => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button"; b.disabled = ocupado;
+    const nome = document.createElement("span"); nome.textContent = m.nome;
+    const cargo = document.createElement("small"); cargo.textContent = m.funcao + " · escolher foto";
+    b.append(nome, cargo);
+    b.addEventListener("click", () => abrirEscolha(m));
+    li.append(b);
+    return li;
+  }));
+}
 
-$("#salvar-fotos").addEventListener("click", async () => {
-  if (ocupado) return;
-  ocupado = true; desenhar();
-  let salvas = 0;
-  const fila = itens.filter(i => !i.feito && situacao(i)[0] !== "erro");
+function abrirEscolha(m) {
+  $("#escolher-titulo").textContent = "Foto de " + m.nome;
+  $("#escolher-vazio").hidden = banco.length > 0;
+  const sugerida = banco.find(f => sugerir(f.nome_arquivo)?.id === m.id);
+  const ordem = sugerida ? [sugerida, ...banco.filter(f => f !== sugerida)] : banco;
+  $("#escolher-grade").replaceChildren(...ordem.map(foto => {
+    const li = document.createElement("li");
+    li.className = "banco-item";
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "escolher-opcao";
+    const img = document.createElement("img");
+    img.src = urlFoto(foto.id); img.alt = "Usar a foto " + foto.nome_arquivo; img.loading = "lazy"; img.width = 150; img.height = 200;
+    const nome = document.createElement("small"); nome.className = "foto-arquivo"; nome.textContent = (foto === sugerida ? "Sugerida · " : "") + foto.nome_arquivo;
+    b.append(img, nome);
+    b.addEventListener("click", async () => { $("#escolher-foto").close(); await usar(foto, m); });
+    li.append(b);
+    return li;
+  }));
+  $("#escolher-foto").showModal();
+}
+
+async function usar(foto, m) {
+  if (ocupado || !m) return;
+  if (m.tem_foto && !confirm(m.nome + " já tem foto. Trocar pela foto do banco?")) return;
+  ocupado = true; desenharBanco(); desenharSemFoto();
   try {
-    for (const [n, item] of fila.entries()) {
-      aviso($("#fotos-msg"), "Salvando " + (n + 1) + " de " + fila.length + "…", true);
+    await privado(urlFoto(foto.id) + "/usar", { method: "POST", json: { membro: m.id, revisao: m.revisao } });
+    escolhaPorFoto.delete(foto.id);
+    aviso($("#fotos-msg"), "Foto enviada para a carteirinha de " + m.nome + ".", true);
+  } catch (error) { aviso($("#fotos-msg"), error.message); }
+  finally { ocupado = false; await carregar().catch(e => aviso($("#fotos-msg"), e.message)); }
+}
+
+async function apagarFoto(foto) {
+  if (ocupado || !confirm("Apagar a foto " + foto.nome_arquivo + " do banco?")) return;
+  ocupado = true; desenharBanco();
+  try { await privado(urlFoto(foto.id), { method: "DELETE" }); aviso($("#fotos-msg"), "Foto apagada do banco.", true); }
+  catch (error) { aviso($("#fotos-msg"), error.message); }
+  finally { ocupado = false; await carregar().catch(e => aviso($("#fotos-msg"), e.message)); }
+}
+
+$("#fotos-input").addEventListener("change", async e => {
+  const arquivos = [...(e.target.files || [])];
+  e.target.value = "";
+  if (!arquivos.length || ocupado) return;
+  ocupado = true; $("#fotos-input").disabled = true; desenharBanco(); desenharSemFoto();
+  let enviadas = 0; const falhas = [];
+  try {
+    for (const [n, arquivo] of arquivos.entries()) {
+      aviso($("#fotos-msg"), "Guardando " + (n + 1) + " de " + arquivos.length + "…", true);
       try {
-        const m = porId(item.membro);
-        const blob = await prepararFoto(item.arquivo);
-        const salvo = await privado("/api/secretaria/membros/" + m.id + "/foto", { method: "PUT", headers: { "Content-Type": "image/jpeg", "X-Revisao": String(m.revisao) }, body: blob });
-        Object.assign(m, { revisao: salvo.revisao, tem_foto: 1 });
-        item.feito = true; salvas++;
+        const blob = await prepararFoto(arquivo);
+        await privado("/api/secretaria/fotos", { method: "POST", headers: { "Content-Type": "image/jpeg", "X-Nome-Arquivo": encodeURIComponent(arquivo.name) }, body: blob });
+        enviadas++;
       } catch (error) {
         if (error.status === 401) throw error;
-        item.erro = error.message;
+        falhas.push(arquivo.name + ": " + error.message);
       }
     }
-    const falhas = fila.length - salvas;
-    aviso($("#fotos-msg"), salvas + (salvas === 1 ? " foto salva" : " fotos salvas") + (falhas ? ". " + falhas + " não foi possível salvar; veja o aviso em cada uma." : "."), !falhas);
-    await carregarMembros();
+    aviso($("#fotos-msg"), (enviadas === 1 ? "1 foto guardada no banco." : enviadas + " fotos guardadas no banco.") + (falhas.length ? " Não foi possível guardar: " + falhas.join(" · ") : ""), !falhas.length);
   } catch (error) { aviso($("#fotos-msg"), error.message); }
-  finally { ocupado = false; desenhar(); }
+  finally { ocupado = false; $("#fotos-input").disabled = false; await carregar().catch(e => aviso($("#fotos-msg"), e.message)); }
 });
-
-window.addEventListener("beforeunload", e => { if (itens.some(i => !i.feito)) { e.preventDefault(); e.returnValue = ""; } });
 
 (async () => {
   try {
-    await carregarMembros();
+    await carregar();
     $("#fotos-app").hidden = false; $("#loading").hidden = true;
-    desenhar();
   } catch (error) { aviso($("#loading"), error.message); }
 })();

@@ -4,20 +4,25 @@
 <body class="admin"><a class="skip" href="#conteudo">Ir para as fotos</a>
 <header class="site-header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Missão Resgate Restaurando Vidas, início"><img src="/assets/simbolo-misrrev.png" alt="" width="46" height="40"><span><strong>Missão Resgate</strong><small>Restaurando Vidas</small></span></a><nav class="main-nav"><a class="back-home" href="/secretaria/"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#arrow-left"></use></svg><span>Lista de membros</span></a></nav></div></header>
 <main class="shell" id="conteudo">
-  <div class="dash-heading"><div><div class="eyebrow dash-eyebrow">Secretaria</div><h1>Fotos das carteirinhas</h1><p>Envie várias fotos de uma vez e diga de quem é cada uma, pelo nome.</p></div><div class="dash-buttons"><a class="btn secondary" href="/secretaria/carteirinhas/"><svg class="icon" aria-hidden="true"><use href="/assets/icones.svg#card"></use></svg>Carteirinhas para impressão</a></div></div>
+  <div class="dash-heading"><div><div class="eyebrow dash-eyebrow">Secretaria</div><h1>Fotos das carteirinhas</h1><p>Guarde as fotos no banco e mande cada uma para a carteirinha da pessoa certa, pelo nome.</p></div><div class="dash-buttons"><a class="btn secondary" href="/secretaria/carteirinhas/"><svg class="icon" aria-hidden="true"><use href="/assets/icones.svg#card"></use></svg>Carteirinhas para impressão</a></div></div>
   <noscript><p class="notice error">Ative o JavaScript para enviar as fotos.</p></noscript>
   <p class="notice" role="status" id="loading">Abrindo a secretaria…</p>
   <div id="fotos-app" hidden>
-    <section class="panel studio-panel" aria-labelledby="tit-enviar"><div class="studio-heading"><h2 id="tit-enviar">Enviar fotos</h2><span class="model-state" id="sem-foto-resumo"></span></div>
-      <p class="muted">Dica: salve cada foto com o nome da pessoa (ex.: <b>Maria Aparecida.jpg</b>) e o site já liga a foto ao cadastro sozinho. Se não reconhecer, escolha o nome na lista.</p>
-      <div class="save-line fotos-topo"><label class="btn primary file-label" for="fotos-input"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg><span>Escolher fotos</span><input id="fotos-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple></label><button id="salvar-fotos" type="button" class="btn secondary" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#check"></use></svg>Salvar fotos</button></div>
+    <section class="panel studio-panel" aria-labelledby="tit-banco"><div class="studio-heading"><h2 id="tit-banco">Banco de fotos</h2><span class="model-state" id="banco-resumo"></span></div>
+      <p class="muted">As fotos ficam guardadas aqui até você escolher de quem é cada uma. Ao enviar para a carteirinha, a foto sai do banco e vai para a ficha da pessoa. Dica: com o nome da pessoa no arquivo (ex.: <b>Maria Aparecida.jpg</b>), o nome já vem sugerido.</p>
+      <div class="save-line fotos-topo"><label class="btn primary file-label" for="fotos-input"><svg class="icon" aria-hidden="true" focusable="false"><use href="/assets/icones.svg#camera"></use></svg><span>Adicionar fotos ao banco</span><input id="fotos-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple></label></div>
       <p id="fotos-msg" role="status" class="notice" hidden></p>
       <datalist id="nomes-membros"></datalist>
-      <ul class="fotos-lista" id="fotos-lista"></ul>
+      <p class="muted" id="banco-vazio" hidden>O banco está vazio. Adicione as fotos tiradas no culto.</p>
+      <ul class="banco-grade" id="banco"></ul>
     </section>
-    <section class="panel studio-panel" aria-labelledby="tit-sem-foto"><div class="studio-heading"><h2 id="tit-sem-foto">Quem ainda está sem foto</h2></div>
+    <section class="panel studio-panel" aria-labelledby="tit-sem-foto"><div class="studio-heading"><h2 id="tit-sem-foto">Quem ainda está sem foto</h2><span class="model-state" id="sem-foto-resumo"></span></div>
+      <p class="muted">Toque em uma pessoa para escolher a foto dela no banco.</p>
       <p class="muted" id="sem-foto-vazio" hidden>Todos os membros cadastrados já têm foto.</p>
       <ul class="sem-foto" id="sem-foto"></ul>
     </section>
   </div>
+  <dialog class="escolher-foto" id="escolher-foto" aria-labelledby="escolher-titulo"><form method="dialog"><div class="studio-heading"><h2 id="escolher-titulo">Escolher foto</h2><button class="plain-small" value="fechar">Fechar</button></div>
+    <p class="muted" id="escolher-vazio" hidden>O banco está vazio. Feche e adicione fotos primeiro.</p>
+    <ul class="banco-grade escolher-grade" id="escolher-grade"></ul></form></dialog>
 </main><footer class="site-footer"><div class="shell footer-inner"><div class="footer-name">Missão Resgate Restaurando Vidas</div><span>Secretaria de membros</span></div></footer></body></html>

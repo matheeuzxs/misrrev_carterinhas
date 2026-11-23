@@ -263,6 +263,66 @@ async function updateMember(request, db, id) {
   return json(await member(db, id));
 }
 
+// Confere se os bytes são um JPEG completo (começo FFD8FF e fim FFD9).
+function conferirJpeg(bytes) {
+  const size = bytes.length;
+  if (size < 32 || bytes[0] !== 255 || bytes[1] !== 216 || bytes[2] !== 255 || bytes[size - 2] !== 255 || bytes[size - 1] !== 217) {
+    throw new HttpError(422, "Não foi possível reconhecer a foto em JPEG.");
+  }
+}
+
+// Banco de fotos: guarda fotos sem dono; "usar" move a foto para a ficha e a apaga do banco.
+async function bancoDeFotos(request, db, path) {
+  const base = "/api/secretaria/fotos";
+  if (path === base) {
+    if (request.method === "GET") {
+      const rows = await db.prepare("SELECT id,nome_arquivo,criada_em FROM fotos_avulsas ORDER BY criada_em DESC").all();
+      return json({ fotos: rows.results });
+    }
+    requireMethod(request, "POST");
+    if (request.headers.get("Content-Type") !== "image/jpeg") throw new HttpError(415, "Escolha uma foto compatível.");
+    const bytes = await readBytes(request, PHOTO_LIMIT);
+    conferirJpeg(bytes);
+    let nome = "";
+    try { nome = decodeURIComponent(request.headers.get("X-Nome-Arquivo") || ""); } catch {}
+    nome = limparTexto(nome).slice(0, 120) || "foto.jpg";
+    const total = await db.prepare("SELECT COUNT(*) AS n FROM fotos_avulsas").first();
+    if (total.n >= 300) throw new HttpError(422, "O banco já tem 300 fotos. Use ou apague algumas antes de enviar mais.");
+    const id = crypto.randomUUID();
+    await db.prepare("INSERT INTO fotos_avulsas(id,nome_arquivo,foto,criada_em) VALUES(?,?,?,?)").bind(id, nome, bytes.buffer, new Date().toISOString()).run();
+    return json({ id, nome_arquivo: nome }, 201);
+  }
+  const m = /^\/api\/secretaria\/fotos\/([0-9a-f-]{36})(\/usar)?$/.exec(path);
+  if (!m) throw new HttpError(404, "Foto não encontrada.");
+  const [, id, usar] = m;
+  if (usar) {
+    requireMethod(request, "POST");
+    const data = await readJson(request);
+    const membro = typeof data.membro === "string" ? data.membro : "";
+    const rev = revision(String(data.revisao ?? ""));
+    const results = await db.batch([
+      db.prepare("UPDATE membros SET foto=(SELECT foto FROM fotos_avulsas WHERE id=?),atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=? AND EXISTS (SELECT 1 FROM fotos_avulsas WHERE id=?)")
+        .bind(id, new Date().toISOString(), membro, rev, id),
+      // changes() é o resultado do UPDATE acima, na mesma transação: só apaga se a foto entrou na ficha.
+      db.prepare("DELETE FROM fotos_avulsas WHERE id=? AND changes()>0").bind(id)
+    ]);
+    if (!results[0].meta.changes) {
+      const existe = await db.prepare("SELECT 1 FROM fotos_avulsas WHERE id=?").bind(id).first();
+      if (!existe) throw new HttpError(404, "Esta foto já foi usada ou apagada. Atualize a página.");
+      await checkChange(db, membro, results[0]);
+    }
+    return json(await member(db, membro));
+  }
+  if (request.method === "DELETE") {
+    await db.prepare("DELETE FROM fotos_avulsas WHERE id=?").bind(id).run();
+    return json({ ok: true });
+  }
+  requireMethod(request, "GET");
+  const row = await db.prepare("SELECT foto FROM fotos_avulsas WHERE id=?").bind(id).first();
+  if (!row) throw new HttpError(404, "Esta foto já foi usada ou apagada.");
+  return new Response(new Uint8Array(row.foto), { headers: { ...SAFETY_HEADERS, "Content-Type": "image/jpeg" } });
+}
+
 async function photo(request, db, id) {
   if (request.method === "GET") {
     const result = await db.prepare("SELECT foto,revisao FROM membros WHERE id=? AND foto IS NOT NULL").bind(id).first();
@@ -275,10 +335,7 @@ async function photo(request, db, id) {
   const rev = revision(request.headers.get("X-Revisao"));
   if (request.headers.get("Content-Type") !== "image/jpeg") throw new HttpError(415, "Escolha uma foto compatível.");
   const bytes = await readBytes(request, PHOTO_LIMIT);
-  const size = bytes.length;
-  if (size < 32 || bytes[0] !== 255 || bytes[1] !== 216 || bytes[2] !== 255 || bytes[size - 2] !== 255 || bytes[size - 1] !== 217) {
-    throw new HttpError(422, "Não foi possível reconhecer a foto em JPEG.");
-  }
+  conferirJpeg(bytes);
   const result = await db.prepare("UPDATE membros SET foto=?,atualizado_em=?,revisao=revisao+1 WHERE id=? AND revisao=?")
     .bind(bytes.buffer, new Date().toISOString(), id, rev).run();
   await checkChange(db, id, result);
@@ -479,6 +536,7 @@ async function handle(request, env, url) {
     return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });
   }
   if (path === "/api/secretaria/lista") return listMembers(request, db);
+  if (path === "/api/secretaria/fotos" || path.startsWith("/api/secretaria/fotos/")) return bancoDeFotos(request, db, path);
   if (path === "/api/secretaria/nomes") {
     // Lista curta de todos os membros, para ligar fotos e escolher carteirinhas pelo nome.
     requireMethod(request, "GET");

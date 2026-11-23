@@ -77,3 +77,41 @@ test("a lista de nomes mostra quem tem foto e exige login", async t => {
   assert.deepEqual(membros.map(m => [m.nome, m.tem_foto]), [["Bruno Souza", 0]]);
   assert.ok(membros[0].id && membros[0].revisao && membros[0].funcao);
 });
+
+test("banco de fotos: guarda, usa na pessoa (sai do banco) e recusa ficha desatualizada", async t => {
+  const db = abrirBanco(); t.after(() => db.close());
+  const env = { MEMBROS_DB: db, SENHA_SECRETARIA: crypto.randomUUID() };
+  const req = (path, method = "GET", body, headers = {}) => worker.fetch(new Request(url + path, {
+    method, headers: { ...(method === "GET" ? {} : { Origin: url }), ...headers }, body
+  }), env);
+  const json = (path, method, data, cookie) => req(path, method, data === undefined ? undefined : JSON.stringify(data), { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) });
+  assert.equal((await json("/api/cadastros", "POST", ficha({ nome: "Carla Mendes" }))).status, 201);
+  const c = (await json("/api/secretaria/entrar", "POST", { senha: env.SENHA_SECRETARIA })).headers.get("Set-Cookie").split(";")[0];
+  const jpeg = new Uint8Array(64).fill(1); jpeg.set([255, 216, 255], 0); jpeg.set([255, 217], 62);
+  const subir = nome => req("/api/secretaria/fotos", "POST", jpeg, { Cookie: c, "Content-Type": "image/jpeg", "X-Nome-Arquivo": encodeURIComponent(nome) });
+
+  assert.equal((await req("/api/secretaria/fotos")).status, 401);
+  assert.equal((await req("/api/secretaria/fotos", "POST", new Uint8Array(64), { Cookie: c, "Content-Type": "image/jpeg" })).status, 422);
+  const a = await (await subir("Carla Mendes.jpg")).json();
+  const b = await (await subir("IMG_1.jpg")).json();
+  assert.equal(a.nome_arquivo, "Carla Mendes.jpg");
+  let lista = await (await req("/api/secretaria/fotos", "GET", undefined, { Cookie: c })).json();
+  assert.equal(lista.fotos.length, 2);
+  assert.equal((await req("/api/secretaria/fotos/" + a.id, "GET", undefined, { Cookie: c })).headers.get("Content-Type"), "image/jpeg");
+
+  const { membros } = await (await req("/api/secretaria/nomes", "GET", undefined, { Cookie: c })).json();
+  const carla = membros[0];
+  assert.equal((await json("/api/secretaria/fotos/" + b.id + "/usar", "POST", { membro: carla.id, revisao: carla.revisao + 5 }, c)).status, 409, "revisão antiga");
+  lista = await (await req("/api/secretaria/fotos", "GET", undefined, { Cookie: c })).json();
+  assert.equal(lista.fotos.length, 2, "nada sai do banco quando a ficha mudou");
+
+  const usada = await json("/api/secretaria/fotos/" + a.id + "/usar", "POST", { membro: carla.id, revisao: carla.revisao }, c);
+  assert.equal(usada.status, 200);
+  assert.equal((await usada.json()).tem_foto, 1);
+  lista = await (await req("/api/secretaria/fotos", "GET", undefined, { Cookie: c })).json();
+  assert.deepEqual(lista.fotos.map(f => f.id), [b.id]);
+  assert.equal((await json("/api/secretaria/fotos/" + a.id + "/usar", "POST", { membro: carla.id, revisao: carla.revisao + 1 }, c)).status, 404, "foto já usada");
+  assert.equal((await req("/api/secretaria/fotos/" + b.id, "DELETE", undefined, { Cookie: c })).status, 200);
+  lista = await (await req("/api/secretaria/fotos", "GET", undefined, { Cookie: c })).json();
+  assert.equal(lista.fotos.length, 0);
+});
